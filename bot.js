@@ -292,8 +292,20 @@ async function loginRequired (req, res, next) {
   }
 }
 
+function ownerRequired (req, res, next) {
+  if (req.user.role === 'OWNER') {
+    next()
+  } else {
+    res.send({ statusText: 'Invalid user' })
+  }
+}
+
 web.get('/', loginRequired, (req, res) => {
   res.sendFile(path.join(__dirname, 'web/index.html'))
+})
+
+web.get('/admin/users', [loginRequired, ownerRequired], (req, res) => {
+  res.sendFile(path.join(__dirname, 'web/admin/users.html'))
 })
 
 web.get('/auth', (req, res) => {
@@ -316,6 +328,37 @@ web.post('/auth', (req, res) => {
     }
   })
 })
+
+/* API v1 Server */
+const api = express.Router()
+web.use('/api/v1/', api)
+
+api.get('/admin/users', [loginRequired, ownerRequired], (req, res) => {
+  usersDB.find({}, (err, docs) => {
+    if (err) { console.log(err) }
+    res.send({ users: docs })
+  })
+})
+
+api.get('/admin/user/:username', [loginRequired, ownerRequired], (req, res) => {
+  usersDB.findOne({ username: req.params.username }, (err, doc) => {
+    if (err) { console.log(err) }
+    res.send({ user: doc })
+  })
+})
+
+api.delete('/admin/user/:username', [loginRequired, ownerRequired], (req, res) => {
+  usersDB.remove({ username: req.params.username }, (err, doc) => {
+    if (err) { console.log(err) }
+    if (doc.deletedCount > 0) {
+      res.send({ statusText: 'success' })
+    } else {
+      res.send({ statusText: 'not deleted' })
+    }
+  })
+})
+
+/* End API v1 Server */
 
 /* Start Express Server */
 web.listen(config.web.port, () => console.log(`Express server started on port ${config.web.port}`))
