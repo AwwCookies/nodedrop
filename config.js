@@ -23,7 +23,7 @@ module.exports = {
     messageSplit: 512,
     encoding: ''
   },
-  ownerNick: 'Aww',
+  ownerNick: 'PrincessAww',
   web: {
     adminPass: 'cookies',
     port: 3000

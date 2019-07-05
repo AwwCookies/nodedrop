@@ -108,6 +108,19 @@ fs.readdir(path.join(__dirname, 'plugins'), function (err, items) {
 /* End plugin stuff */
 
 /* Map client events to `events` */
+function getUser (nick, cb) {
+  client.whois(nick, (whois) => {
+    if (whois.account) {
+      usersDB.findOne({ username: whois.account }, (err, doc) => {
+        if (err) { console.log(err) }
+        if (doc) {
+          cb(doc)
+        }
+      })
+    }
+  })
+}
+
 client.addListener('message', (from, to, message) => {
   events.emit('message', from, to, message)
   // COMMAND: !status
@@ -120,92 +133,120 @@ client.addListener('message', (from, to, message) => {
     client.say(to, `IRC: ${status.irc} | Web Server: ${status.web} | MongoDB: ${status.mongodb}`)
   }
   // COMMAND: !restart
-  if (from === config.ownerNick && message.match(/^(!restart)$/)) {
-    client.say(to, 'Restarting...')
-    process.exit()
+  if (message.match(/^(!restart)$/)) {
+    getUser(from, (user) => {
+      if (user.role === 'OWNER') {
+        client.say(to, 'Restarting...')
+        process.exit()
+      }
+    })
   }
 })
 
 client.addListener('pm', (from, message) => {
   events.emit('pm', from, message)
-  // COMMAND: Register !reg <username> <password>
-  if (message.match(/(!reg)\s([^\s]*)\s(.+)/)) {
-    const [,, username, password] = message.match(/(!reg)\s([^\s]*)\s(.+)/)
-    usersDB.findOne({ username: username }, (err, doc) => {
-      if (err) { console.log(err) } else {
-        if (doc) { // username taken
-          client.say(from, 'Please choose another username')
-        } else {
-          usersDB.insert({
-            username: username,
-            password: bcrypt.hashSync(password, bcrypt.genSaltSync(10)),
-            role: 'USER'
-          })
-          client.say(from, 'Thank you for registering!')
-        }
+  // COMMAND: Register !reg <password>
+  if (message.match(/(!reg)\s(.+)/)) {
+    const [,, password] = message.match(/(!reg)\s(.+)/)
+    client.say(from, 'Waiting for whois data')
+    client.whois(from, (whois) => {
+      if (whois.account) {
+        const username = whois.account
+        usersDB.findOne({ username: username }, (err, doc) => {
+          if (err) { console.log(err) } else {
+            if (doc) { // username taken
+              client.say(from, 'You already have an account!')
+            } else {
+              usersDB.insert({
+                username: username,
+                password: bcrypt.hashSync(password, bcrypt.genSaltSync(10)),
+                role: 'USER'
+              })
+              client.say(from, `Thank you for registering! Username: ${username}`)
+            }
+          }
+        })
+      } else {
+        client.say(from, "You're not logged into an IRC account")
       }
     })
   }
+
   // Owner commands
-  if (from === config.ownerNick) {
-    // COMMAND: !deluser <username>
-    // remove user from database
-    if (message.match(/^(!deluser)\s(.+)$/)) {
-      const [,, username] = message.match(/^(!deluser)\s(.+)$/)
-      usersDB.remove({ username: username }, (err, doc) => {
-        if (err) { console.log(err) }
-        if (doc.deletedCount > 0) {
-          client.say(from, `${username} was deleted.`)
-        } else {
-          client.say(from, `Couldn't delete ${username}`)
-        }
-      })
-    }
-    // COMMAND: !listusers
-    // list all users
-    if (message.match(/^(!listusers)$/)) {
-      usersDB.find({}, (err, docs) => {
-        if (err) { console.log(err) }
-        client.say(from, 'User list')
-        // [test|user, test2|user]
-        client.say(from, docs.map(doc => [doc.username, doc.role].join('|')).join(', '))
-        client.say(from, 'End user list')
-      })
-    }
-    // COMMAND: !admin <username>
-    // sets <username> role to ADMIN
-    if (message.match(/^(!admin)\s(.+)$/)) {
-      const [,, username] = message.match(/^(!admin)\s(.+)$/)
-      usersDB.update({ username }, { $set: { role: 'ADMIN' } }, (err, doc) => {
-        if (err) { console.log(err) }
-        if (doc.n > 0) {
-          if (doc.nModified > 0) {
-            client.say(from, `${username} is now an admin`)
+  // COMMAND: !deluser <username>
+  // remove user from database
+  if (message.match(/^(!deluser)\s(.+)$/)) {
+    client.whois(from, (whois) => {
+      if (whois.account && whois.account === config.ownerNick) {
+        const [,, username] = message.match(/^(!deluser)\s(.+)$/)
+        usersDB.remove({ username: username }, (err, doc) => {
+          if (err) { console.log(err) }
+          if (doc.deletedCount > 0) {
+            client.say(from, `${username} was deleted.`)
           } else {
-            client.say(from, `${username} is already an admin`)
+            client.say(from, `Couldn't delete ${username}`)
           }
-        } else {
-          client.say(from, `${username} is invalid`)
-        }
-      })
-    }
-    // COMMAND: !rmadmin <username>
-    // set <username> role to USER
-    if (message.match(/^(!rmadmin)\s(.+)$/)) {
-      const [,, username] = message.match(/^(!rmadmin)\s(.+)$/)
-      usersDB.update({ username }, { $set: { role: 'USER' } }, (err, doc) => {
-        if (err) { console.log(err) }
-        if (doc.n > 0) {
-          if (doc.nModified > 0) {
-            client.say(from, `${username} is no longer an admin`)
+        })
+      }
+    })
+  }
+  // COMMAND: !listusers
+  // list all users
+  if (message.match(/^(!listusers)$/)) {
+    getUser(from, (doc) => {
+      if (doc.role === 'OWNER' || doc.role === 'ADMIN') {
+        usersDB.find({}, (err, docs) => {
+          if (err) { console.log(err) }
+          client.say(from, 'User list')
+          // [test|user, test2|user]
+          client.say(from, docs.map(doc => [doc.username, doc.role].join('|')).join(', '))
+          client.say(from, 'End user list')
+        })
+      }
+    })
+  }
+  // COMMAND: !admin <username>
+  // sets <username> role to ADMIN
+  if (message.match(/^(!admin)\s(.+)$/)) {
+    const [,, username] = message.match(/^(!admin)\s(.+)$/)
+    getUser(from, (user) => {
+      console.log(user)
+      if (user.role === 'OWNER') {
+        usersDB.update({ username }, { $set: { role: 'ADMIN' } }, (err, doc) => {
+          if (err) { console.log(err) }
+          if (doc.n > 0) {
+            if (doc.nModified > 0) {
+              client.say(from, `${username} is now an admin`)
+            } else {
+              client.say(from, `${username} is already an admin`)
+            }
           } else {
-            client.say(from, `${username} is not an admin`)
+            client.say(from, `${username} is invalid`)
           }
-        } else {
-          client.say(from, `${username} is invalid`)
-        }
-      })
-    }
+        })
+      }
+    })
+  }
+  // COMMAND: !rmadmin <username>
+  // set <username> role to USER
+  if (message.match(/^(!rmadmin)\s(.+)$/)) {
+    getUser(from, (user) => {
+      if (user.role === 'OWNER') {
+        const [,, username] = message.match(/^(!rmadmin)\s(.+)$/)
+        usersDB.update({ username }, { $set: { role: 'USER' } }, (err, doc) => {
+          if (err) { console.log(err) }
+          if (doc.n > 0) {
+            if (doc.nModified > 0) {
+              client.say(from, `${username} is no longer an admin`)
+            } else {
+              client.say(from, `${username} is not an admin`)
+            }
+          } else {
+            client.say(from, `${username} is invalid`)
+          }
+        })
+      }
+    })
   }
 })
 
