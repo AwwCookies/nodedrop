@@ -31,5 +31,6 @@ module.exports = {
   plugins: {
     disabled: []
   },
-  cmdPrefix: '!'
+  cmdPrefix: '!',
+  secert: 'cookies'
 }

@@ -6,6 +6,8 @@ const expect = require('expect')
 const express = require('express')
 const mongojs = require('mongojs')
 const bcrypt = require('bcryptjs')
+const cookieParser = require('cookie-parser')
+const jwt = require('jsonwebtoken')
 const EventEmitter = require('events')
 const config = require('./config')
 
@@ -16,8 +18,8 @@ let client = new irc.Client(config.irc.server, 'nodedrop', config.irc)
 const web = express()
 web.use(bodyParser.json())
 web.use(bodyParser.urlencoded({ extended: false }))
-// web.use(cookieParser())
-web.use(express.static('./html/public'))
+web.use(cookieParser())
+web.use(express.static('./web/public'))
 
 // Connect to local mongodb and select 'nodedrop' database
 const db = mongojs('nodedrop-mongo/nodedrop')
@@ -212,6 +214,64 @@ client.addListener('error', function (message) {
   console.log('error: ', message)
 })
 /* End Map client events to `events` */
+
+/* Web Stuff */
+// json web token middleware
+async function loginRequired (req, res, next) {
+  const token = req.cookies.token
+  if (typeof token !== 'undefined') {
+    jwt.verify(token, config.secert, async (err, authData) => {
+      if (err) {
+        res.status(401).json({
+          statusText: "You're not authed"
+        })
+      } else {
+        usersDB.findOne({ username: authData.username }, (err, doc) => {
+          if (err) { console.log(err) } else {
+            if (!doc) {
+              res.status(401).json({
+                statusText: 'Invalid auth data'
+              })
+            } else {
+              req.token = authData
+              req.user = doc
+              next()
+            }
+          }
+        })
+      }
+    })
+  } else {
+    res.status(401).json({
+      statusText: 'Not logged in'
+    })
+  }
+}
+
+web.get('/', loginRequired, (req, res) => {
+  res.sendFile(path.join(__dirname, 'web/index.html'))
+})
+
+web.get('/auth', (req, res) => {
+  res.sendFile(path.join(__dirname, 'web/login.html'))
+})
+web.post('/auth', (req, res) => {
+  usersDB.findOne({ username: req.body.username }, (err, doc) => {
+    if (err) { console.log(err) } else {
+      if (!doc) {
+        res.status(401).send('Invalid Login')
+      } else {
+        console.log(doc)
+        if (bcrypt.compareSync(req.body.password, doc.password)) {
+          res.cookie('token', jwt.sign({ username: req.body.username }, config.secert))
+          res.status(200).send('done!')
+        } else {
+          console.log('wrong password?')
+        }
+      }
+    }
+  })
+})
 
 /* Start Express Server */
 web.listen(config.web.port, () => console.log(`Express server started on port ${config.web.port}`))
