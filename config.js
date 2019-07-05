@@ -32,5 +32,6 @@ module.exports = {
     disabled: []
   },
   cmdPrefix: '!',
-  secert: 'cookies'
+  secert: 'cookies',
+  restartDelay: 20000 // 20 seconds
 }

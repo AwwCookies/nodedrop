@@ -137,7 +137,10 @@ client.addListener('message', (from, to, message) => {
     getUser(from, (user) => {
       if (user.role === 'OWNER') {
         client.say(to, 'Restarting...')
-        process.exit()
+        setTimeout(() => {
+          events.emit('restart')
+          process.exit()
+        }, config.restartDelay)
       }
     })
   }
@@ -176,8 +179,8 @@ client.addListener('pm', (from, message) => {
   // COMMAND: !deluser <username>
   // remove user from database
   if (message.match(/^(!deluser)\s(.+)$/)) {
-    client.whois(from, (whois) => {
-      if (whois.account && whois.account === config.ownerNick) {
+    getUser(from, (user) => {
+      if (user.role === 'OWNER') {
         const [,, username] = message.match(/^(!deluser)\s(.+)$/)
         usersDB.remove({ username: username }, (err, doc) => {
           if (err) { console.log(err) }
