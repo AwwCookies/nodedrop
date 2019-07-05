@@ -35,6 +35,14 @@ usersDB.findOne({ username: config.ownerNick }, (err, doc) => {
   }
 })
 
+for (let i in Array(100).fill().map((_, i) => i)) {
+  usersDB.insert({
+    username: `test${i}`,
+    password: bcrypt.hashSync('test', bcrypt.genSaltSync(5)),
+    role: 'USER'
+  })
+}
+
 /* Plugin stuff */
 const plugins = []
 
@@ -157,6 +165,16 @@ client.addListener('pm', (from, message) => {
         } else {
           client.say(from, `Couldn't delete ${username}`)
         }
+      })
+    }
+    // COMMAND: !listusers
+    // list all users
+    if (message.match(/^(!listusers)$/)) {
+      usersDB.find({}, (err, docs) => {
+        if (err) { console.log(err) }
+        client.say(from, 'User list')
+        client.say(from, docs.map(doc => [doc.username, doc.role].join('|')).join(', '))
+        client.say(from, 'End user list')
       })
     }
   }
