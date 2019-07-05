@@ -187,6 +187,23 @@ client.addListener('pm', (from, message) => {
         }
       })
     }
+    // COMMAND: !rmadmin <username>
+    // set <username> role to USER
+    if (message.match(/^(!rmadmin)\s(.+)$/)) {
+      const [,, username] = message.match(/^(!rmadmin)\s(.+)$/)
+      usersDB.update({ username }, { $set: { role: 'USER' } }, (err, doc) => {
+        if (err) { console.log(err) }
+        if (doc.n > 0) {
+          if (doc.nModified > 0) {
+            client.say(from, `${username} is no longer an admin`)
+          } else {
+            client.say(from, `${username} is not an admin`)
+          }
+        } else {
+          client.say(from, `${username} is invalid`)
+        }
+      })
+    }
   }
 })
 
