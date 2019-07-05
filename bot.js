@@ -19,7 +19,7 @@ web.use(bodyParser.urlencoded({ extended: false }))
 // web.use(cookieParser())
 web.use(express.static('./html/public'))
 
-// Connect to local mongodb and select 'pepe-discord-bot' database
+// Connect to local mongodb and select 'nodedrop' database
 const db = mongojs('nodedrop-mongo/nodedrop')
 // Create owner user
 const usersDB = db.collection('users')

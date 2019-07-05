@@ -9,7 +9,7 @@ module.exports = {
     showErrors: true,
     autoRejoin: false,
     autoConnect: true,
-    channels: ['#Aww'],
+    channels: ['##Aww'],
     secure: false,
     selfSigned: false,
     certExpired: false,
