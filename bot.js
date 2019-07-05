@@ -117,6 +117,11 @@ client.addListener('message', (from, to, message) => {
     }
     client.say(to, `IRC: ${status.irc} | Web Server: ${status.web} | MongoDB: ${status.mongodb}`)
   }
+  // COMMAND: !restart
+  if (from === config.ownerNick && message.match(/^(!restart)$/)) {
+    client.say(to, 'Restarting...')
+    process.exit()
+  }
 })
 
 client.addListener('pm', (from, message) => {
@@ -139,7 +144,6 @@ client.addListener('pm', (from, message) => {
       }
     })
   }
-  // COMMAND:
 })
 
 client.addListener('error', function (message) {
