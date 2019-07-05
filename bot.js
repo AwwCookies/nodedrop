@@ -35,14 +35,6 @@ usersDB.findOne({ username: config.ownerNick }, (err, doc) => {
   }
 })
 
-for (let i in Array(100).fill().map((_, i) => i)) {
-  usersDB.insert({
-    username: `test${i}`,
-    password: bcrypt.hashSync('test', bcrypt.genSaltSync(5)),
-    role: 'USER'
-  })
-}
-
 /* Plugin stuff */
 const plugins = []
 
@@ -173,8 +165,26 @@ client.addListener('pm', (from, message) => {
       usersDB.find({}, (err, docs) => {
         if (err) { console.log(err) }
         client.say(from, 'User list')
+        // [test|user, test2|user]
         client.say(from, docs.map(doc => [doc.username, doc.role].join('|')).join(', '))
         client.say(from, 'End user list')
+      })
+    }
+    // COMMAND: !admin <username>
+    // sets <username> role to ADMIN
+    if (message.match(/^(!admin)\s(.+)$/)) {
+      const [,, username] = message.match(/^(!admin)\s(.+)$/)
+      usersDB.update({ username }, { $set: { role: 'ADMIN' } }, (err, doc) => {
+        if (err) { console.log(err) }
+        if (doc.n > 0) {
+          if (doc.nModified > 0) {
+            client.say(from, `${username} is now an admin`)
+          } else {
+            client.say(from, `${username} is already an admin`)
+          }
+        } else {
+          client.say(from, `${username} is invalid`)
+        }
       })
     }
   }
