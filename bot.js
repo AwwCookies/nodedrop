@@ -144,6 +144,22 @@ client.addListener('pm', (from, message) => {
       }
     })
   }
+  // Owner commands
+  if (from === config.ownerNick) {
+    // COMMAND: !deluser <username>
+    // remove user from database
+    if (message.match(/^(!deluser)\s(.+)$/)) {
+      const [,, username] = message.match(/^(!deluser)\s(.+)$/)
+      usersDB.remove({ username: username }, (err, doc) => {
+        if (err) { console.log(err) }
+        if (doc.deletedCount > 0) {
+          client.say(from, `${username} was deleted.`)
+        } else {
+          client.say(from, `Couldn't delete ${username}`)
+        }
+      })
+    }
+  }
 })
 
 client.addListener('error', function (message) {
