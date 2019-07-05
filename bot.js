@@ -28,7 +28,7 @@ usersDB.findOne({ username: config.ownerNick }, (err, doc) => {
     if (!doc) {
       usersDB.insert({
         username: config.ownerNick,
-        password: bcrypt.hashSync(config.web.adminPass, bcrypt.genSaltSync(20)),
+        password: bcrypt.hashSync(config.web.adminPass, bcrypt.genSaltSync(12)),
         role: 'OWNER'
       })
     }

@@ -1,6 +1,6 @@
 module.exports = {
   irc: {
-    server: 'irc.snoonet.org',
+    server: 'chat.freenode.net',
     userName: 'nodedrop',
     realName: 'nodedrop',
     port: 6667,
