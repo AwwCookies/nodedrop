@@ -44,6 +44,7 @@ bot.registerCommand = function (name, type, match, access, help, func) {
       } // end owner else if
     } // end if match
   }) // end events.on
+  console.log(`🚀 Command ${name} registed!`)
 }
 
 const web = express()
@@ -177,7 +178,7 @@ fs.readdir(path.join(__dirname, 'plugins'), function (err, items) {
 })
 /* End plugin stuff */
 
-/* Map client events to `events` */
+/* Bot Commands and Functions */
 function getUser (nick, cb) {
   bot.whois(nick, (whois) => {
     if (whois.account) {
@@ -201,129 +202,147 @@ function checkIgnoreList (host) {
 }
 
 // COMMAND: !status
-bot.registerCommand('!status', 'message', /^(!status)$/, 'ALL', '', (event) => {
-  let status = {
-    irc: 'Online ✅',
-    web: 'Online ✅',
-    mongodb: 'Online ✅'
-  }
-  bot.say(event.target, `IRC: ${status.irc} | Web Server: ${status.web} | MongoDB: ${status.mongodb}`)
-})
-// COMMAND: !restart
-bot.registerCommand('!restart', 'message', /^(!restart)$/, 'OWNER', '', (event) => {
-  bot.say(event.target, 'Restarting...')
-  setTimeout(() => {
-    events.emit('restart')
-    process.exit()
-  }, config.restartDelay)
-})
-// COMMAND: !ignore <host> <reason>
-bot.registerCommand('!ignore', 'message', /^(!ignore)\s([^\s]*)\s(.+)$/, 'OWNER', '', (event) => {
-  const [,, host, reason] = event.message.match(/^(!ignore)\s([^\s]*)\s(.+)$/)
-  createIgnore(host, reason, (err, created) => {
-    if (err) { console.log(err) }
-    if (created) {
-      bot.say(event.target, `${host} added to ignore list.`)
-    } else {
-      bot.say(event.target, 'monkaHmm')
+bot.registerCommand('!status', 'message', /^(!status)$/, 'ALL',
+  'Return the status of running services. | !status',
+  (event) => {
+    let status = {
+      irc: 'Online ✅',
+      web: 'Online ✅',
+      mongodb: 'Online ✅'
     }
+    bot.say(event.target, `IRC: ${status.irc} | Web Server: ${status.web} | MongoDB: ${status.mongodb}`)
   })
-})
+// COMMAND: !restart
+bot.registerCommand('!restart', 'message', /^(!restart)$/, 'OWNER',
+  'Restart the bot and services | !restart ',
+  (event) => {
+    bot.say(event.target, 'Restarting...')
+    setTimeout(() => {
+      events.emit('restart')
+      process.exit()
+    }, config.restartDelay)
+  })
+// COMMAND: !ignore <host> <reason>
+bot.registerCommand('!ignore', 'message', /^(!ignore)\s([^\s]*)\s(.+)$/, 'OWNER',
+  'Make bot ignore all messages from <host> | !ignore <host> <reason>',
+  (event) => {
+    const [,, host, reason] = event.message.match(/^(!ignore)\s([^\s]*)\s(.+)$/)
+    createIgnore(host, reason, (err, created) => {
+      if (err) { console.log(err) }
+      if (created) {
+        bot.say(event.target, `${host} added to ignore list.`)
+      } else {
+        bot.say(event.target, 'monkaHmm')
+      }
+    })
+  })
 // COMMAND: !help <command>
 bot.registerCommand('!help', 'message', /^(!help)\s(.+)$/, 'OWNER', '!help <command>', (event) => {
   const [,, cmd] = event.message.match(/^(!help)\s(.+)$/)
   if (bot.cmdHelp[cmd]) {
-    bot.say(event.target, `${cmd}: something`)
+    bot.say(event.target, `${cmd}: ${bot.cmdHelp[cmd]}`)
   } else {
     bot.say(event.target, `No help for ${cmd}`)
   }
 })
 // COMMAND: !rmignore <host>
-bot.registerCommand('!rmignore', 'message', /^(!rmignore)\s(.+)$/, 'OWNER', '', (event) => {
-  const [,, host] = event.message.match(/^(!rmignore)\s(.+)$/)
-  ignorelistDB.remove({ host: host }, (err, doc) => {
-    if (err) { console.log(err) }
-    if (doc.deletedCount > 0) {
-      bot.say(event.target, `${host} was deleted.`)
-    } else {
-      bot.say(event.target, `Couldn't delete ${host}`)
-    }
+bot.registerCommand('!rmignore', 'message', /^(!rmignore)\s(.+)$/, 'OWNER',
+  'Remove ignore set on <host> | !rmignore <host>',
+  (event) => {
+    const [,, host] = event.message.match(/^(!rmignore)\s(.+)$/)
+    ignorelistDB.remove({ host: host }, (err, doc) => {
+      if (err) { console.log(err) }
+      if (doc.deletedCount > 0) {
+        bot.say(event.target, `${host} was deleted.`)
+      } else {
+        bot.say(event.target, `Couldn't delete ${host}`)
+      }
+    })
   })
-})
 // COMMAND: !reg <password>
-bot.registerCommand('!reg', 'pm', /^(!reg)\s(.+)$/, 'ALL', '', (event) => {
-  const [,, password] = event.message.match(/^(!reg)\s(.+)$/)
-  bot.say(event.nick, 'Waiting for whois data')
-  bot.whois(event.nick, (whois) => {
-    if (whois.account) {
-      const username = whois.account
-      createUser(username, password, 'USER', [], [], (err, created) => {
-        if (err) { console.log(err) }
-        if (created) {
-          bot.say(event.nick, `Thank you for registering! Username: ${username}`)
-        } else {
-          bot.say(event.nick, 'You already have an account!')
-        }
-      })
-    } else {
-      bot.say(event.nick, "You're not logged into an IRC account")
-    }
+bot.registerCommand('!reg', 'pm', /^(!reg)\s(.+)$/, 'ALL',
+  'Register IRC account with bot | !reg <password>',
+  (event) => {
+    const [,, password] = event.message.match(/^(!reg)\s(.+)$/)
+    bot.say(event.nick, 'Waiting for whois data')
+    bot.whois(event.nick, (whois) => {
+      if (whois.account) {
+        const username = whois.account
+        createUser(username, password, 'USER', [], [], (err, created) => {
+          if (err) { console.log(err) }
+          if (created) {
+            bot.say(event.nick, `Thank you for registering! Username: ${username}`)
+          } else {
+            bot.say(event.nick, 'You already have an account!')
+          }
+        })
+      } else {
+        bot.say(event.nick, "You're not logged into an IRC account")
+      }
+    })
   })
-})
-// COMMAND: !deluser <account>
-bot.registerCommand('!deluser', 'pm', /^(!deluser)\s(.+)$/, 'OWNER', '', (event) => {
-  const [,, username] = event.message.match(/^(!deluser)\s(.+)$/)
-  usersDB.remove({ username: username }, (err, doc) => {
-    if (err) { console.log(err) }
-    if (doc.deletedCount > 0) {
-      bot.say(event.nick, `${username} was deleted.`)
-    } else {
-      bot.say(event.nick, `Couldn't delete ${username}`)
-    }
+// COMMAND: !rmuser <account>
+bot.registerCommand('!rmuser', 'pm', /^(!rmuser)\s(.+)$/, 'OWNER',
+  'Delete a users account | !rmuser <account>',
+  (event) => {
+    const [,, username] = event.message.match(/^(!rmuser)\s(.+)$/)
+    usersDB.remove({ username: username }, (err, doc) => {
+      if (err) { console.log(err) }
+      if (doc.deletedCount > 0) {
+        bot.say(event.nick, `${username} was deleted.`)
+      } else {
+        bot.say(event.nick, `Couldn't delete ${username}`)
+      }
+    })
   })
-})
 // COMMAND: !listusers
-bot.registerCommand('!listusers', 'pm', /^(!listusers)$/, 'OWNER', '', (event) => {
-  usersDB.find({}, (err, docs) => {
-    if (err) { console.log(err) }
-    bot.say(event.nick, 'User list')
-    // [test|user, test2|user]
-    bot.say(event.nick, docs.map(doc => [doc.username, doc.role].join('|')).join(', '))
-    bot.say(event.nick, 'End user list')
+bot.registerCommand('!listusers', 'pm', /^(!listusers)$/, 'OWNER',
+  'List all registered users | !listusers',
+  (event) => {
+    usersDB.find({}, (err, docs) => {
+      if (err) { console.log(err) }
+      bot.say(event.nick, 'User list')
+      // [test|user, test2|user]
+      bot.say(event.nick, docs.map(doc => [doc.username, doc.role].join('|')).join(', '))
+      bot.say(event.nick, 'End user list')
+    })
   })
-})
 // COMMAND: !admin <account>
-bot.registerCommand('!admin', 'pm', /^(!admin)\s(.+)$/, 'OWNER', '', (event) => {
-  const [,, username] = event.message.match(/^(!admin)\s(.+)$/)
-  usersDB.update({ username }, { $set: { role: 'ADMIN' } }, (err, doc) => {
-    if (err) { console.log(err) }
-    if (doc.n > 0) {
-      if (doc.nModified > 0) {
-        bot.say(event.nick, `${username} is now an admin`)
+bot.registerCommand('!admin', 'pm', /^(!admin)\s(.+)$/, 'OWNER',
+  'Changes <account> role to ADMIN | !admin <account>',
+  (event) => {
+    const [,, username] = event.message.match(/^(!admin)\s(.+)$/)
+    usersDB.update({ username }, { $set: { role: 'ADMIN' } }, (err, doc) => {
+      if (err) { console.log(err) }
+      if (doc.n > 0) {
+        if (doc.nModified > 0) {
+          bot.say(event.nick, `${username} is now an admin`)
+        } else {
+          bot.say(event.nick, `${username} is already an admin`)
+        }
       } else {
-        bot.say(event.nick, `${username} is already an admin`)
+        bot.say(event.nick, `${username} is invalid`)
       }
-    } else {
-      bot.say(event.nick, `${username} is invalid`)
-    }
+    })
   })
-})
 // COMMAND: !rmadmin <account>
-bot.registerCommand('!rmadmin', 'pm', /^(!rmadmin)\s(.+)$/, 'OWNER', '', (event) => {
-  const [,, username] = event.message.match(/^(!rmadmin)\s(.+)$/)
-  usersDB.update({ username }, { $set: { role: 'USER' } }, (err, doc) => {
-    if (err) { console.log(err) }
-    if (doc.n > 0) {
-      if (doc.nModified > 0) {
-        bot.say(event.nick, `${username} is no longer an admin`)
+bot.registerCommand('!rmadmin', 'pm', /^(!rmadmin)\s(.+)$/, 'OWNER',
+  'Changes <account> role to USER | !rmadmin <account>',
+  (event) => {
+    const [,, username] = event.message.match(/^(!rmadmin)\s(.+)$/)
+    usersDB.update({ username }, { $set: { role: 'USER' } }, (err, doc) => {
+      if (err) { console.log(err) }
+      if (doc.n > 0) {
+        if (doc.nModified > 0) {
+          bot.say(event.nick, `${username} is no longer an admin`)
+        } else {
+          bot.say(event.nick, `${username} is not an admin`)
+        }
       } else {
-        bot.say(event.nick, `${username} is not an admin`)
+        bot.say(event.nick, `${username} is invalid`)
       }
-    } else {
-      bot.say(event.nick, `${username} is invalid`)
-    }
+    })
   })
-})
 
 bot.on('privmsg', (event) => {
   checkIgnoreList(event.hostname).then((ignored) => {
@@ -338,11 +357,6 @@ bot.on('privmsg', (event) => {
     }
   })
 })
-
-// client.addListener('error', function (message) {
-//   events.emit('error', message)
-//   console.log('error: ', message)
-// })
 /* End Map client events to `events` */
 
 /* Web Stuff */
