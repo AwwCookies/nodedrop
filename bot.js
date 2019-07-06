@@ -66,7 +66,7 @@ function createIgnore (host, reason, cb) {
 }
 /* End Database Functions */
 
-createIgnore('user/PrincessAww', 'spammer', (err, created) => {
+createIgnore('snoonet.org/user/Awwx', 'spammer', (err, created) => {
   if (err) { console.log(err) }
   console.log('IGNORE: ', created)
 })
@@ -197,6 +197,22 @@ bot.on('privmsg', (event) => {
               events.emit('restart')
               process.exit()
             }, config.restartDelay)
+          }
+        })
+      }
+      // COMMAND: !rmignore <host>
+      if (event.message.match(/^(!rmignore)\s(.+)$/)) {
+        const [,, host] = event.message.match(/^(!rmignore)\s(.+)$/)
+        getUser(event.nick, (user) => {
+          if (user.role === 'OWNER') {
+            ignorelistDB.remove({ host: host }, (err, doc) => {
+              if (err) { console.log(err) }
+              if (doc.deletedCount > 0) {
+                bot.say(event.target, `${host} was deleted.`)
+              } else {
+                bot.say(event.target, `Couldn't delete ${host}`)
+              }
+            })
           }
         })
       }
