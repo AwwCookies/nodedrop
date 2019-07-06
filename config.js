@@ -1,27 +1,9 @@
 module.exports = {
   irc: {
-    server: 'irc.snoonet.org',
-    userName: 'nodedrop',
-    realName: 'nodedrop',
-    port: 6667,
-    localAddress: null,
-    debug: true,
-    showErrors: true,
-    autoRejoin: false,
-    autoConnect: true,
-    channels: ['#Aww'],
-    secure: false,
-    selfSigned: false,
-    certExpired: false,
-    floodProtection: true,
-    floodProtectionDelay: 1000,
-    sasl: false,
-    retryCount: 0,
-    retryDelay: 2000,
-    stripColors: true,
-    channelPrefixes: '#',
-    messageSplit: 512,
-    encoding: ''
+    nick: 'nodedrop',
+    username: 'nodedrop',
+    host: 'irc.snoonet.org',
+    port: 6667
   },
   ownerNick: 'PrincessAww',
   web: {

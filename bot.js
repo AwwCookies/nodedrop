@@ -15,11 +15,7 @@ const events = new EventEmitter()
 
 const bot = new IRC.Client()
 
-bot.connect({
-  host: 'irc.snoonet.org',
-  port: 6667,
-  nick: 'nodedrop'
-})
+bot.connect(config.irc)
 
 bot.on('registered', () => bot.join('#Aww'))
 
@@ -400,6 +396,21 @@ web.use('/api/v1/', api)
 
 api.get('/admin/info/plugins', [loginRequired, ownerRequired], (req, res) => {
   res.send({ plugins: plugins })
+})
+
+api.get('/admin/ignorelist', [loginRequired, ownerRequired], (req, res) => {
+  ignorelistDB.find({}, (err, docs) => {
+    if (err) { console.log(err) }
+    res.send({ 'ignorelist': docs })
+  })
+})
+
+api.delete('/admin/ignorelist/:id', [loginRequired, ownerRequired], (req, res) => {
+  ignorelistDB.remove({ _id: mongojs.ObjectId(req.params.id) }, (err, doc) => {
+    if (err) { console.log(err) }
+    console.log(doc)
+    res.send({ statusText: 'ok' })
+  })
 })
 
 api.get('/admin/users', [loginRequired, ownerRequired], (req, res) => {
