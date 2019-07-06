@@ -4,5 +4,6 @@
     "author": "AwwCookies",
     "version": "0.0.1",
     "database": {"dbs": ["testing"]},
-    "webPrefix": "test"
+    "webPrefix": "test",
+    "webSettings": true
 }

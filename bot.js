@@ -19,7 +19,7 @@ const web = express()
 web.use(bodyParser.json())
 web.use(bodyParser.urlencoded({ extended: false }))
 web.use(cookieParser())
-web.use(express.static('./web/public'))
+web.use('/public', express.static('./web/public'))
 
 // Connect to local mongodb and select 'nodedrop' database
 const db = mongojs('nodedrop-mongo/nodedrop')
@@ -31,7 +31,9 @@ usersDB.findOne({ username: config.ownerNick }, (err, doc) => {
       usersDB.insert({
         username: config.ownerNick,
         password: bcrypt.hashSync(config.web.adminPass, bcrypt.genSaltSync(12)),
-        role: 'OWNER'
+        role: 'OWNER',
+        flags: [],
+        pluginOptions: {}
       })
     }
   }
@@ -41,6 +43,7 @@ usersDB.findOne({ username: config.ownerNick }, (err, doc) => {
 const plugins = []
 
 function loadPlugin (folder) {
+  console.log(`Loading ./plugins/${folder} 📂`)
   // Verfiy the folder contains "settings.json" && "index.js"
   let files = fs.readdirSync(path.join(__dirname, `plugins/${folder}`))
   if (!files.includes('index.js', 'settings.json')) {
@@ -55,7 +58,8 @@ function loadPlugin (folder) {
     'author': expect.any(String),
     'version': expect.any(String),
     'database': { dbs: expect.any(Array) },
-    'webPrefix': expect.any(String)
+    'webPrefix': expect.any(String),
+    'webSettings': expect.any(Boolean)
   })
   // Check if plugin already loaded
   if (plugins.find((plugin) => {
@@ -68,7 +72,6 @@ function loadPlugin (folder) {
     return
   }
 
-  console.log(`Loading ./plugins/${folder} 📂`)
   console.log(
     `\t📕 Name: ${pluginInfo.name}`,
     `\n\t📝 Description: ${pluginInfo.description}`,
@@ -163,7 +166,9 @@ client.addListener('pm', (from, message) => {
               usersDB.insert({
                 username: username,
                 password: bcrypt.hashSync(password, bcrypt.genSaltSync(10)),
-                role: 'USER'
+                role: 'USER',
+                flags: [],
+                pluginOptions: {}
               })
               client.say(from, `Thank you for registering! Username: ${username}`)
             }
@@ -300,6 +305,14 @@ function ownerRequired (req, res, next) {
   }
 }
 
+function adminRequired (req, res, next) {
+  if (req.user.role === 'OWNER' || req.user.role === 'ADMIN') {
+    next()
+  } else {
+    res.send({ statusText: 'Invalid user' })
+  }
+}
+
 web.get('/', loginRequired, (req, res) => {
   res.sendFile(path.join(__dirname, 'web/index.html'))
 })
@@ -311,6 +324,7 @@ web.get('/admin/users', [loginRequired, ownerRequired], (req, res) => {
 web.get('/auth', (req, res) => {
   res.sendFile(path.join(__dirname, 'web/login.html'))
 })
+
 web.post('/auth', (req, res) => {
   usersDB.findOne({ username: req.body.username }, (err, doc) => {
     if (err) { console.log(err) } else {
@@ -332,6 +346,10 @@ web.post('/auth', (req, res) => {
 /* API v1 Server */
 const api = express.Router()
 web.use('/api/v1/', api)
+
+api.get('/admin/info/plugins', [loginRequired, ownerRequired], (req, res) => {
+  res.send({ plugins: plugins })
+})
 
 api.get('/admin/users', [loginRequired, ownerRequired], (req, res) => {
   usersDB.find({}, (err, docs) => {

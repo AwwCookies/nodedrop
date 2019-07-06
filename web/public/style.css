@@ -1,0 +1,15 @@
+body {
+    background-color: #343a40;
+}
+#app {
+    padding: 0px;
+}
+#content {
+    background-color: gainsboro;
+    padding: 0px;
+}
+#sidebar {
+    background-color: grey;
+    padding: 0px;
+    height: 94vh;
+}
