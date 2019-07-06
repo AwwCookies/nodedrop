@@ -25,19 +25,28 @@ web.use('/public', express.static('./web/public'))
 const db = mongojs('nodedrop-mongo/nodedrop')
 // Create owner user
 const usersDB = db.collection('users')
-usersDB.findOne({ username: config.ownerNick }, (err, doc) => {
-  if (err) { console.log(err) } else {
-    if (!doc) {
-      usersDB.insert({
-        username: config.ownerNick,
-        password: bcrypt.hashSync(config.web.adminPass, bcrypt.genSaltSync(12)),
-        role: 'OWNER',
-        flags: [],
-        pluginOptions: {}
-      })
+
+function createUser (username, password, role, flags = [], pluginOptions = {}, cb) {
+  usersDB.findOne({ username: username }, (err, doc) => {
+    if (err) { console.log(err) } else {
+      if (!doc) {
+        usersDB.insert({
+          username,
+          password: bcrypt.hashSync(password, bcrypt.genSaltSync(12)),
+          role,
+          flags,
+          pluginOptions
+        })
+        if (cb) { cb(err, true) }
+      } else {
+        if (cb) { cb(err, false) }
+      }
     }
-  }
-})
+  })
+}
+
+// Create owner user
+createUser(config.ownerNick, config.web.adminPass, 'OWNER')
 
 /* Plugin stuff */
 const plugins = []
@@ -79,14 +88,19 @@ function loadPlugin (folder) {
     `\n\t🤖 Version: ${pluginInfo.version}`
   )
   plugins.push(pluginInfo)
-  // actually load the plugin
+  // build plugin params
   try {
     const router = express.Router()
+    // scope web routes to /plugin/<webprefix>/
     web.use(`/plugin/${pluginInfo.webPrefix}/`, router)
+    // setup plugin web public folder
+    web.use(`/plugin/${folder}/public`, express.static(`./plugins/${folder}/web/public`))
+    // setup databases if any request
     const dbs = {}
     pluginInfo.database.dbs.forEach((dbName) => {
       dbs[dbName] = db.collection(`plugin-${pluginInfo.name}-${dbName}`)
     })
+    // actual load the plugin
     require('./plugins/' + folder)(client, events, dbs, router)
     console.log(`${folder} loaded! ✅`)
   } catch (e) {
@@ -158,20 +172,12 @@ client.addListener('pm', (from, message) => {
     client.whois(from, (whois) => {
       if (whois.account) {
         const username = whois.account
-        usersDB.findOne({ username: username }, (err, doc) => {
-          if (err) { console.log(err) } else {
-            if (doc) { // username taken
-              client.say(from, 'You already have an account!')
-            } else {
-              usersDB.insert({
-                username: username,
-                password: bcrypt.hashSync(password, bcrypt.genSaltSync(10)),
-                role: 'USER',
-                flags: [],
-                pluginOptions: {}
-              })
-              client.say(from, `Thank you for registering! Username: ${username}`)
-            }
+        createUser(username, password, 'USER', [], [], (err, created) => {
+          if (err) { console.log(err) }
+          if (created) {
+            client.say(from, `Thank you for registering! Username: ${username}`)
+          } else {
+            client.say(from, 'You already have an account!')
           }
         })
       } else {
