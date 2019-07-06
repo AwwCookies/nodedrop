@@ -14,6 +14,7 @@ const config = require('./config')
 const events = new EventEmitter()
 
 let client = new irc.Client(config.irc.server, 'nodedrop', config.irc)
+client.ignoreThisMessage = false
 
 const web = express()
 web.use(bodyParser.json())
@@ -25,7 +26,10 @@ web.use('/public', express.static('./web/public'))
 const db = mongojs('nodedrop-mongo/nodedrop')
 // Create owner user
 const usersDB = db.collection('users')
+const ignorelistDB = db.collection('ignorelist')
 
+/* Database functions */
+// Create new user
 function createUser (username, password, role, flags = [], pluginOptions = {}, cb) {
   usersDB.findOne({ username: username }, (err, doc) => {
     if (err) { console.log(err) } else {
@@ -44,6 +48,25 @@ function createUser (username, password, role, flags = [], pluginOptions = {}, c
     }
   })
 }
+// Create new ignore entry
+function createIgnore (host, reason, cb) {
+  ignorelistDB.insert({
+    host,
+    reason,
+    time: new Date()
+  }, (err, doc) => {
+    if (err) { console.log(err) }
+    if (cb) {
+      cb(err, Boolean(doc))
+    }
+  })
+}
+/* End Database Functions */
+
+createIgnore('user/PrincessAww', 'spammer', (err, created) => {
+  if (err) { console.log(err) }
+  console.log('IGNORE: ', created)
+})
 
 // Create owner user
 createUser(config.ownerNick, config.web.adminPass, 'OWNER')
@@ -138,7 +161,19 @@ function getUser (nick, cb) {
   })
 }
 
+client.addListener('raw', (message) => {
+  client.ignoreThisMessage = false
+  ignorelistDB.findOne({ host: message.host }, (err, doc) => {
+    if (err) { console.log(err) }
+    if (doc) {
+      client.ignoreThisMessage = true
+    }
+  })
+})
+
 client.addListener('message', (from, to, message) => {
+  console.log('ignoring?', client.ignoreThisMessage)
+  if (client.ignoreThisMessage) { return true }
   events.emit('message', from, to, message)
   // COMMAND: !status
   if (message.match(/^(!status)$/)) {
@@ -164,6 +199,8 @@ client.addListener('message', (from, to, message) => {
 })
 
 client.addListener('pm', (from, message) => {
+  console.log('ignoring?', client.ignoreThisMessage)
+  if (client.ignoreThisMessage) { return true }
   events.emit('pm', from, message)
   // COMMAND: Register !reg <password>
   if (message.match(/(!reg)\s(.+)/)) {
