@@ -1,9 +1,9 @@
 const path = require('path')
 
-module.exports = function (client, events, dbs, router) {
-  events.on('message', (from, to, message) => {
-    if (message.match(/^(!test)$/)) {
-      client.say(to, 'Hello from test')
+module.exports = function (bot, events, dbs, router) {
+  events.on('message', (event) => {
+    if (event.message.match(/^(!test)$/)) {
+      bot.say(event.target, 'Hello from test')
     }
   })
   router.get('/', (req, res) => {

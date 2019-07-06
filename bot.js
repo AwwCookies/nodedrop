@@ -1,4 +1,5 @@
-const irc = require('irc')
+// const irc = require('irc')
+const IRC = require('irc-framework')
 const path = require('path')
 const fs = require('fs')
 const bodyParser = require('body-parser')
@@ -13,8 +14,17 @@ const config = require('./config')
 
 const events = new EventEmitter()
 
-let client = new irc.Client(config.irc.server, 'nodedrop', config.irc)
-client.ignoreThisMessage = false
+// let client = new irc.Client(config.irc.server, 'nodedrop', config.irc)
+// client.ignoreThisMessage = false
+const bot = new IRC.Client()
+
+bot.connect({
+  host: 'irc.snoonet.org',
+  port: 6667,
+  nick: 'nodedrop'
+})
+
+bot.on('registered', () => bot.join('#Aww'))
 
 const web = express()
 web.use(bodyParser.json())
@@ -124,7 +134,7 @@ function loadPlugin (folder) {
       dbs[dbName] = db.collection(`plugin-${pluginInfo.name}-${dbName}`)
     })
     // actual load the plugin
-    require('./plugins/' + folder)(client, events, dbs, router)
+    require('./plugins/' + folder)(bot, events, dbs, router)
     console.log(`${folder} loaded! ✅`)
   } catch (e) {
     console.log(`Error loading '${folder}: ${e}' ❌`)
@@ -149,7 +159,7 @@ fs.readdir(path.join(__dirname, 'plugins'), function (err, items) {
 
 /* Map client events to `events` */
 function getUser (nick, cb) {
-  client.whois(nick, (whois) => {
+  bot.whois(nick, (whois) => {
     if (whois.account) {
       usersDB.findOne({ username: whois.account }, (err, doc) => {
         if (err) { console.log(err) }
@@ -161,34 +171,26 @@ function getUser (nick, cb) {
   })
 }
 
-client.addListener('raw', (message) => {
-  client.ignoreThisMessage = false
-  ignorelistDB.findOne({ host: message.host }, (err, doc) => {
-    if (err) { console.log(err) }
-    if (doc) {
-      client.ignoreThisMessage = true
-    }
-  })
+bot.on('privmsg', (event) => {
+  console.log(event)
 })
 
-client.addListener('message', (from, to, message) => {
-  console.log('ignoring?', client.ignoreThisMessage)
-  if (client.ignoreThisMessage) { return true }
-  events.emit('message', from, to, message)
+bot.on('privmsg', (event) => {
+  events.emit('message', event)
   // COMMAND: !status
-  if (message.match(/^(!status)$/)) {
+  if (event.message.match(/^(!status)$/)) {
     let status = {
       irc: 'Online ✅',
       web: 'Online ✅',
       mongodb: 'Online ✅'
     }
-    client.say(to, `IRC: ${status.irc} | Web Server: ${status.web} | MongoDB: ${status.mongodb}`)
+    bot.say(event.target, `IRC: ${status.irc} | Web Server: ${status.web} | MongoDB: ${status.mongodb}`)
   }
   // COMMAND: !restart
-  if (message.match(/^(!restart)$/)) {
-    getUser(from, (user) => {
+  if (event.message.match(/^(!restart)$/)) {
+    getUser(event.nick, (user) => {
       if (user.role === 'OWNER') {
-        client.say(to, 'Restarting...')
+        bot.say(event.target, 'Restarting...')
         setTimeout(() => {
           events.emit('restart')
           process.exit()
@@ -198,113 +200,114 @@ client.addListener('message', (from, to, message) => {
   }
 })
 
-client.addListener('pm', (from, message) => {
-  console.log('ignoring?', client.ignoreThisMessage)
-  if (client.ignoreThisMessage) { return true }
-  events.emit('pm', from, message)
-  // COMMAND: Register !reg <password>
-  if (message.match(/(!reg)\s(.+)/)) {
-    const [,, password] = message.match(/(!reg)\s(.+)/)
-    client.say(from, 'Waiting for whois data')
-    client.whois(from, (whois) => {
-      if (whois.account) {
-        const username = whois.account
-        createUser(username, password, 'USER', [], [], (err, created) => {
-          if (err) { console.log(err) }
-          if (created) {
-            client.say(from, `Thank you for registering! Username: ${username}`)
-          } else {
-            client.say(from, 'You already have an account!')
-          }
-        })
-      } else {
-        client.say(from, "You're not logged into an IRC account")
-      }
-    })
-  }
+bot.addListener('message', (event) => {
+  console.log('target:', event.target)
+  if (event.target === 'nodedrop') {
+    events.emit('pm', event)
+    // COMMAND: Register !reg <password>
+    if (event.message.match(/(!reg)\s(.+)/)) {
+      const [,, password] = event.message.match(/(!reg)\s(.+)/)
+      bot.say(event.nick, 'Waiting for whois data')
+      bot.whois(event.nick, (whois) => {
+        if (whois.account) {
+          const username = whois.account
+          createUser(username, password, 'USER', [], [], (err, created) => {
+            if (err) { console.log(err) }
+            if (created) {
+              bot.say(event.nick, `Thank you for registering! Username: ${username}`)
+            } else {
+              bot.say(event.nick, 'You already have an account!')
+            }
+          })
+        } else {
+          bot.say(event.nick, "You're not logged into an IRC account")
+        }
+      })
+    }
 
-  // Owner commands
-  // COMMAND: !deluser <username>
-  // remove user from database
-  if (message.match(/^(!deluser)\s(.+)$/)) {
-    getUser(from, (user) => {
-      if (user.role === 'OWNER') {
-        const [,, username] = message.match(/^(!deluser)\s(.+)$/)
-        usersDB.remove({ username: username }, (err, doc) => {
-          if (err) { console.log(err) }
-          if (doc.deletedCount > 0) {
-            client.say(from, `${username} was deleted.`)
-          } else {
-            client.say(from, `Couldn't delete ${username}`)
-          }
-        })
-      }
-    })
-  }
-  // COMMAND: !listusers
-  // list all users
-  if (message.match(/^(!listusers)$/)) {
-    getUser(from, (doc) => {
-      if (doc.role === 'OWNER' || doc.role === 'ADMIN') {
-        usersDB.find({}, (err, docs) => {
-          if (err) { console.log(err) }
-          client.say(from, 'User list')
-          // [test|user, test2|user]
-          client.say(from, docs.map(doc => [doc.username, doc.role].join('|')).join(', '))
-          client.say(from, 'End user list')
-        })
-      }
-    })
-  }
-  // COMMAND: !admin <username>
-  // sets <username> role to ADMIN
-  if (message.match(/^(!admin)\s(.+)$/)) {
-    const [,, username] = message.match(/^(!admin)\s(.+)$/)
-    getUser(from, (user) => {
-      console.log(user)
-      if (user.role === 'OWNER') {
-        usersDB.update({ username }, { $set: { role: 'ADMIN' } }, (err, doc) => {
-          if (err) { console.log(err) }
-          if (doc.n > 0) {
-            if (doc.nModified > 0) {
-              client.say(from, `${username} is now an admin`)
+    // Owner commands
+    // COMMAND: !deluser <username>
+    // remove user from database
+    if (event.message.match(/^(!deluser)\s(.+)$/)) {
+      getUser(event.nick, (user) => {
+        if (user.role === 'OWNER') {
+          const [,, username] = event.message.match(/^(!deluser)\s(.+)$/)
+          usersDB.remove({ username: username }, (err, doc) => {
+            if (err) { console.log(err) }
+            if (doc.deletedCount > 0) {
+              bot.say(event.nick, `${username} was deleted.`)
             } else {
-              client.say(from, `${username} is already an admin`)
+              bot.say(event.nick, `Couldn't delete ${username}`)
             }
-          } else {
-            client.say(from, `${username} is invalid`)
-          }
-        })
-      }
-    })
-  }
-  // COMMAND: !rmadmin <username>
-  // set <username> role to USER
-  if (message.match(/^(!rmadmin)\s(.+)$/)) {
-    getUser(from, (user) => {
-      if (user.role === 'OWNER') {
-        const [,, username] = message.match(/^(!rmadmin)\s(.+)$/)
-        usersDB.update({ username }, { $set: { role: 'USER' } }, (err, doc) => {
-          if (err) { console.log(err) }
-          if (doc.n > 0) {
-            if (doc.nModified > 0) {
-              client.say(from, `${username} is no longer an admin`)
+          })
+        }
+      })
+    }
+    // COMMAND: !listusers
+    // list all users
+    if (event.message.match(/^(!listusers)$/)) {
+      getUser(event.nick, (doc) => {
+        if (doc.role === 'OWNER' || doc.role === 'ADMIN') {
+          usersDB.find({}, (err, docs) => {
+            if (err) { console.log(err) }
+            bot.say(event.nick, 'User list')
+            // [test|user, test2|user]
+            bot.say(event.nick, docs.map(doc => [doc.username, doc.role].join('|')).join(', '))
+            bot.say(event.nick, 'End user list')
+          })
+        }
+      })
+    }
+    // COMMAND: !admin <username>
+    // sets <username> role to ADMIN
+    if (event.message.match(/^(!admin)\s(.+)$/)) {
+      const [,, username] = event.message.match(/^(!admin)\s(.+)$/)
+      getUser(event.nick, (user) => {
+        console.log(user)
+        if (user.role === 'OWNER') {
+          usersDB.update({ username }, { $set: { role: 'ADMIN' } }, (err, doc) => {
+            if (err) { console.log(err) }
+            if (doc.n > 0) {
+              if (doc.nModified > 0) {
+                bot.say(event.nick, `${username} is now an admin`)
+              } else {
+                bot.say(event.nick, `${username} is already an admin`)
+              }
             } else {
-              client.say(from, `${username} is not an admin`)
+              bot.say(event.nick, `${username} is invalid`)
             }
-          } else {
-            client.say(from, `${username} is invalid`)
-          }
-        })
-      }
-    })
+          })
+        }
+      })
+    }
+    // COMMAND: !rmadmin <username>
+    // set <username> role to USER
+    if (event.message.match(/^(!rmadmin)\s(.+)$/)) {
+      getUser(event.nick, (user) => {
+        if (user.role === 'OWNER') {
+          const [,, username] = event.message.match(/^(!rmadmin)\s(.+)$/)
+          usersDB.update({ username }, { $set: { role: 'USER' } }, (err, doc) => {
+            if (err) { console.log(err) }
+            if (doc.n > 0) {
+              if (doc.nModified > 0) {
+                bot.say(event.nick, `${username} is no longer an admin`)
+              } else {
+                bot.say(event.nick, `${username} is not an admin`)
+              }
+            } else {
+              bot.say(event.nick, `${username} is invalid`)
+            }
+          })
+        }
+      })
+    }
   }
 })
 
-client.addListener('error', function (message) {
-  events.emit('error', message)
-  console.log('error: ', message)
-})
+// client.addListener('error', function (message) {
+//   events.emit('error', message)
+//   console.log('error: ', message)
+// })
 /* End Map client events to `events` */
 
 /* Web Stuff */

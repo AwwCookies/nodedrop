@@ -17,7 +17,7 @@
     "cookie-parser": "^1.4.4",
     "expect": "^24.8.0",
     "express": "^4.17.1",
-    "irc": "^0.5.2",
+    "irc-framework": "^4.4.0",
     "jsonwebtoken": "^8.5.1",
     "mongojs": "^2.6.0",
     "standard": "^12.0.1"
