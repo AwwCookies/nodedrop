@@ -1,4 +1,3 @@
-// const irc = require('irc')
 const IRC = require('irc-framework')
 const path = require('path')
 const fs = require('fs')
@@ -14,8 +13,6 @@ const config = require('./config')
 
 const events = new EventEmitter()
 
-// let client = new irc.Client(config.irc.server, 'nodedrop', config.irc)
-// client.ignoreThisMessage = false
 const bot = new IRC.Client()
 
 bot.connect({
