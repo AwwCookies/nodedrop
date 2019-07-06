@@ -3,7 +3,8 @@ module.exports = {
     nick: 'nodedrop',
     username: 'nodedrop',
     host: 'irc.snoonet.org',
-    port: 6667
+    port: 6667,
+    version: 'Nodedrop (https://git.io/fjikz)'
   },
   ownerNick: 'PrincessAww',
   web: {
