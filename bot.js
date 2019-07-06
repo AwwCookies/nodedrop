@@ -217,7 +217,7 @@ bot.on('privmsg', (event) => {
         })
       }
       /* message sent to bot */
-      if (event.target === 'nodedrop') {
+      if (event.target === config.irc.nick) {
         events.emit('pm', event)
         // COMMAND: Register !reg <password>
         if (event.message.match(/(!reg)\s(.+)/)) {
@@ -316,10 +316,10 @@ bot.on('privmsg', (event) => {
             }
           })
         }
-      }
-    }
-  })
-})
+      } // end pm
+    } // end else
+  }) // end check ignore
+}) // end bot.on
 
 // client.addListener('error', function (message) {
 //   events.emit('error', message)
