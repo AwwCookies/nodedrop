@@ -13,16 +13,28 @@ const config = require('./config')
 
 const events = new EventEmitter()
 
+// global object
+// Easy way to pass QoL functions and vars to plugins
+const N = {
+  loginRequired,
+  ownerRequired,
+  createUser,
+  updateUser,
+  createIgnore,
+  registerCommand,
+  config
+}
+
 const bot = new IRC.Client()
 
 bot.connect(config.irc)
 bot.on('registered', () => bot.join('#Aww'))
 bot.cmdHelp = {}
 
-bot.registerCommand = function (name, type, match, access, help, func) {
+function registerCommand (name, type, match, access, help, func) {
   const types = ['message', 'pm']
   // check if invaild type
-  if (!types.includes(type)) { console.error('ERROR: Invalid type passed to bot.registerCommand') }
+  if (!types.includes(type)) { console.error('ERROR: Invalid type passed to registerCommand') }
   expect(func).toEqual(expect.any(Function))
   bot.cmdHelp[name] = help
   events.on(type, (event) => {
@@ -196,7 +208,7 @@ function loadPlugin (folder) {
       dbs[dbName] = db.collection(`plugin-${pluginInfo.name}-${dbName}`)
     })
     // actual load the plugin
-    require('./plugins/' + folder)(bot, events, dbs, router)
+    require('./plugins/' + folder)(bot, events, dbs, router, N)
     console.log(`${folder} loaded! ✅`)
   } catch (e) {
     console.log(`Error loading '${folder}: ${e}' ❌`)
@@ -245,7 +257,7 @@ function checkIgnoreList (host) {
 // regex ^(!join)\s([^\s]*)\s?(.+)?$
 
 // COMMAND: !status
-bot.registerCommand('!status', 'message', /^(!status)$/, 'ALL',
+registerCommand('!status', 'message', /^(!status)$/, 'ALL',
   'Return the status of running services. | !status',
   (event) => {
     let status = {
@@ -256,7 +268,7 @@ bot.registerCommand('!status', 'message', /^(!status)$/, 'ALL',
     bot.say(event.target, `IRC: ${status.irc} | Web Server: ${status.web} | MongoDB: ${status.mongodb}`)
   })
 // COMMAND: !restart
-bot.registerCommand('!restart', 'message', /^(!restart)$/, 'OWNER',
+registerCommand('!restart', 'message', /^(!restart)$/, 'OWNER',
   'Restart the bot and services | !restart ',
   (event) => {
     bot.say(event.target, 'Restarting...')
@@ -266,7 +278,7 @@ bot.registerCommand('!restart', 'message', /^(!restart)$/, 'OWNER',
     }, config.restartDelay)
   })
 // COMMAND: !ignore <host> <reason>
-bot.registerCommand('!ignore', 'message', /^(!ignore)\s([^\s]*)\s(.+)$/, 'OWNER',
+registerCommand('!ignore', 'message', /^(!ignore)\s([^\s]*)\s(.+)$/, 'OWNER',
   'Make bot ignore all messages from <host> | !ignore <host> <reason>',
   (event) => {
     const [,, host, reason] = event.message.match(/^(!ignore)\s([^\s]*)\s(.+)$/)
@@ -280,7 +292,7 @@ bot.registerCommand('!ignore', 'message', /^(!ignore)\s([^\s]*)\s(.+)$/, 'OWNER'
     })
   })
 // COMMAND: !help <command>
-bot.registerCommand('!help', 'message', /^(!help)\s(.+)$/, 'OWNER', '!help <command>', (event) => {
+registerCommand('!help', 'message', /^(!help)\s(.+)$/, 'OWNER', '!help <command>', (event) => {
   const [,, cmd] = event.message.match(/^(!help)\s(.+)$/)
   if (bot.cmdHelp[cmd]) {
     bot.say(event.target, `${cmd}: ${bot.cmdHelp[cmd]}`)
@@ -289,7 +301,7 @@ bot.registerCommand('!help', 'message', /^(!help)\s(.+)$/, 'OWNER', '!help <comm
   }
 })
 // COMMAND: !rmignore <host>
-bot.registerCommand('!rmignore', 'message', /^(!rmignore)\s(.+)$/, 'OWNER',
+registerCommand('!rmignore', 'message', /^(!rmignore)\s(.+)$/, 'OWNER',
   'Remove ignore set on <host> | !rmignore <host>',
   (event) => {
     const [,, host] = event.message.match(/^(!rmignore)\s(.+)$/)
@@ -303,7 +315,7 @@ bot.registerCommand('!rmignore', 'message', /^(!rmignore)\s(.+)$/, 'OWNER',
     })
   })
 // COMMAND: !reg <password>
-bot.registerCommand('!reg', 'pm', /^(!reg)\s(.+)$/, 'ALL',
+registerCommand('!reg', 'pm', /^(!reg)\s(.+)$/, 'ALL',
   'Register IRC account with bot | !reg <password>',
   (event) => {
     const [,, password] = event.message.match(/^(!reg)\s(.+)$/)
@@ -325,7 +337,7 @@ bot.registerCommand('!reg', 'pm', /^(!reg)\s(.+)$/, 'ALL',
     })
   })
 // COMMAND: !rmuser <account>
-bot.registerCommand('!rmuser', 'pm', /^(!rmuser)\s(.+)$/, 'OWNER',
+registerCommand('!rmuser', 'pm', /^(!rmuser)\s(.+)$/, 'OWNER',
   'Delete a users account | !rmuser <account>',
   (event) => {
     const [,, username] = event.message.match(/^(!rmuser)\s(.+)$/)
@@ -339,7 +351,7 @@ bot.registerCommand('!rmuser', 'pm', /^(!rmuser)\s(.+)$/, 'OWNER',
     })
   })
 // COMMAND: !listusers
-bot.registerCommand('!listusers', 'pm', /^(!listusers)$/, 'OWNER',
+registerCommand('!listusers', 'pm', /^(!listusers)$/, 'OWNER',
   'List all registered users | !listusers',
   (event) => {
     usersDB.find({}, (err, docs) => {
@@ -351,7 +363,7 @@ bot.registerCommand('!listusers', 'pm', /^(!listusers)$/, 'OWNER',
     })
   })
 // COMMAND: !admin <account>
-bot.registerCommand('!admin', 'pm', /^(!admin)\s(.+)$/, 'OWNER',
+registerCommand('!admin', 'pm', /^(!admin)\s(.+)$/, 'OWNER',
   'Changes <account> role to ADMIN | !admin <account>',
   (event) => {
     const [,, username] = event.message.match(/^(!admin)\s(.+)$/)
@@ -369,7 +381,7 @@ bot.registerCommand('!admin', 'pm', /^(!admin)\s(.+)$/, 'OWNER',
     })
   })
 // COMMAND: !rmadmin <account>
-bot.registerCommand('!rmadmin', 'pm', /^(!rmadmin)\s(.+)$/, 'OWNER',
+registerCommand('!rmadmin', 'pm', /^(!rmadmin)\s(.+)$/, 'OWNER',
   'Changes <account> role to USER | !rmadmin <account>',
   (event) => {
     const [,, username] = event.message.match(/^(!rmadmin)\s(.+)$/)
