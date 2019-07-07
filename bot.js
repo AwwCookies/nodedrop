@@ -254,12 +254,22 @@ function checkIgnoreList (host) {
   })
 }
 // COMMAND: !join
-// regex ^(!join)\s([^\s]*)\s?(.+)?$
 registerCommand('!join', 'message', /^(!join)\s([^\s]*)\s?(.+)?$/, 'OWNER',
   'Join a channel | !join <channel> [<password>]',
   (event) => {
     const [,, channel, password] = event.message.match(/^(!join)\s([^\s]*)\s?(.+)?$/)
     bot.join(channel, password)
+  })
+// COMMAND: !part
+registerCommand('!part', 'message', /(!part)\s?([^\s]+)?$/, 'OWNER',
+  'Leave a channel | !part [<channel>]',
+  (event) => {
+    const [,, channel] = event.message.match(/(!part)\s?([^\s]+)?$/)
+    if (channel) {
+      bot.part(channel)
+    } else {
+      bot.part(event.target)
+    }
   })
 // COMMAND: !status
 registerCommand('!status', 'message', /^(!status)$/, 'ALL',
