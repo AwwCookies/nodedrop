@@ -261,10 +261,10 @@ registerCommand('!join', 'message', /^(!join)\s([^\s]*)\s?(.+)?$/, 'OWNER',
     bot.join(channel, password)
   })
 // COMMAND: !part
-registerCommand('!part', 'message', /(!part)\s?([^\s]+)?$/, 'OWNER',
+registerCommand('!part', 'message', /^(!part)\s?([^\s]+)?$/, 'OWNER',
   'Leave a channel | !part [<channel>]',
   (event) => {
-    const [,, channel] = event.message.match(/(!part)\s?([^\s]+)?$/)
+    const [,, channel] = event.message.match(/^(!part)\s?([^\s]+)?$/)
     if (channel) {
       bot.part(channel)
     } else {
