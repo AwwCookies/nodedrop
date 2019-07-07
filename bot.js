@@ -255,7 +255,12 @@ function checkIgnoreList (host) {
 }
 // COMMAND: !join
 // regex ^(!join)\s([^\s]*)\s?(.+)?$
-
+registerCommand('!join', 'message', /^(!join)\s([^\s]*)\s?(.+)?$/, 'OWNER',
+  'Join a channel | !join <channel> [<password>]',
+  (event) => {
+    const [,, channel, password] = event.message.match(/^(!join)\s([^\s]*)\s?(.+)?$/)
+    bot.join(channel, password)
+  })
 // COMMAND: !status
 registerCommand('!status', 'message', /^(!status)$/, 'ALL',
   'Return the status of running services. | !status',
