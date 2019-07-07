@@ -461,6 +461,16 @@ api.delete('/admin/ignorelist/:id', [loginRequired, ownerRequired], (req, res) =
   })
 })
 
+api.put('/admin/ignorelist', [loginRequired, ownerRequired], (req, res) => {
+  if (req.body.host && req.body.reason) {
+    createIgnore(req.body.host, req.body.reason, () => {
+      res.send({ statusText: 'ignoring' })
+    })
+  } else {
+    res.send({ statusText: 'Invalid form data' })
+  }
+})
+
 api.get('/admin/users', [loginRequired, ownerRequired], (req, res) => {
   usersDB.find({}, (err, docs) => {
     if (err) { console.log(err) }
@@ -486,6 +496,13 @@ api.delete('/admin/user/:username', [loginRequired, ownerRequired], (req, res) =
   })
 })
 
+api.post('/admin/function/restart', [loginRequired, ownerRequired], (req, res) => {
+  setTimeout(() => {
+    events.emit('restart')
+    process.exit()
+  }, config.restartDelay)
+  res.send({ delay: config.restartDelay })
+})
 /* End API v1 Server */
 
 /* Start Express Server */

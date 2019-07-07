@@ -20,6 +20,14 @@
       crossorigin="anonymous"></script>
     <script src="https://cdn.jsdelivr.net/npm/vue"></script>
     <script src="https://unpkg.com/axios/dist/axios.min.js"></script>
+    <script
+      src="//cdn.jsdelivr.net/npm/alertifyjs@1.11.4/build/alertify.min.js"></script>
+    <link rel="stylesheet"
+      href="//cdn.jsdelivr.net/npm/alertifyjs@1.11.4/build/css/alertify.min.css"
+      />
+    <link rel="stylesheet"
+      href="//cdn.jsdelivr.net/npm/alertifyjs@1.11.4/build/css/themes/bootstrap.min.css"
+      />
     <link rel="stylesheet" href="public/style.css">
     <title>Nodedrop</title>
   </head>
@@ -55,10 +63,10 @@
       <div class="row">
         <div class="col-1 bg-dark" id="sidebar">
           <ul class="nav flex-column">
-              <li class="nav-item active">
-                  <a @click="comp.active= 'home'" class="nav-link"
-                    href="#">Home</a>
-                </li>
+            <li class="nav-item active">
+              <a @click="comp.active= 'home'" class="nav-link"
+                href="#">Home</a>
+            </li>
             <li class="nav-item">
               <a @click="comp.active= 'settings'" class="nav-link"
                 href="#">Settings</a>
@@ -68,14 +76,16 @@
                 href="#">Users</a>
             </li>
             <li class="nav-item">
-              <a @click="comp.active= 'ignore'"class="nav-link" href="#">Ignore List</a>
+              <a @click="comp.active= 'ignore'" class="nav-link" href="#">Ignore
+                List</a>
             </li>
             <li class="nav-item">
               <a class="nav-link disabled" href="#" tabindex="-1"
                 aria-disabled="true">Plugins</a>
             </li>
             <li class="nav-item" v-for="plugin in plugins">
-                <a v-if="plugin.webSettings" @click="comp.active = 'plugin/' + plugin.name" class="nav-link" href="#">{{plugin.name}}</a>
+              <a v-if="plugin.webSettings" @click="comp.active= 'plugin/' +
+                plugin.name" class="nav-link" href="#">{{plugin.name}}</a>
             </li>
           </ul>
         </div>
@@ -84,7 +94,7 @@
             <h1>Nodedrop</h1>
             <p>Plugins: {{plugins.length}}</p>
             <p>Users: {{users.length}}</p>
-            <button class="btn-danger">restart</button>
+            <button @click="restart" class="btn btn-danger">restart</button>
           </div> <!-- End Home -->
           <div v-if="comp.active === 'settings'" style="max-width:
             400px;">
@@ -134,14 +144,20 @@
                   <td>{{user.username}}</td>
                   <td>{{user.password}}</td>
                   <td>{{user.role}}</td>
-                  <td><button @click="removeUser(user.username)" class="btn-danger">Delete</button></td>
+                  <td><button @click="removeUser(user.username)"
+                      class="btn btn-danger">Delete</button></td>
                 </tr>
               </tbody>
             </table>
           </div> <!-- End Userx  -->
           <div v-if="comp.active === 'ignore'">
             <h1>Ignore List</h1>
-            <button @click="getIgnoreList">Refresh</button>
+            <button @click="getIgnoreList" class="btn btn-dark">Refresh</button>
+            <button type="button" class="btn btn-primary float-right"
+              data-toggle="modal"
+              data-target="#addIgnoreModal">
+              Add Ignore
+            </button>
             <table class="table table-hover table-dark">
               <thead>
                 <tr>
@@ -158,19 +174,62 @@
                   <td>{{ignore.host}}</td>
                   <td>{{ignore.reason}}</td>
                   <td>{{ignore.time}}</td>
-                  <td><button @click="removeIgnore(ignore._id.toString())" class="btn-danger">Delete</button></td>
+                  <td><button @click="removeIgnore(ignore._id.toString())"
+                      class="btn btn-danger">Delete</button></td>
                 </tr>
               </tbody>
             </table>
+
+            <!-- Modal -->
+            <div class="modal fade" id="addIgnoreModal" tabindex="-1"
+              role="dialog" aria-labelledby="label"
+              aria-hidden="true">
+              <div class="modal-dialog" role="document">
+                <div class="modal-content">
+                  <div class="modal-header">
+                    <h5 class="modal-title" id="label">Add Ignore</h5>
+                    <button type="button" class="close" data-dismiss="modal"
+                      aria-label="Close">
+                      <span aria-hidden="true">&times;</span>
+                    </button>
+                  </div>
+                  <div class="modal-body">
+                    <form>
+                      <div class="form-group">
+                        <label for="host">Host</label>
+                        <input type="text" class="form-control"
+                          id="exampleInputEmail1" aria-describedby="host"
+                          placeholder="example.org"
+                          v-model="comp.ignorelist.host">
+                      </div>
+                      <div class="form-group">
+                        <label for="reason">Reason</label>
+                        <input type="text" class="form-control"
+                          id="reason" placeholder="Spamming"
+                          v-model="comp.ignorelist.reason">
+                      </div>
+                    </form>
+                  </div>
+                  <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary"
+                      data-dismiss="modal">Close</button>
+                    <button @click="addIgnore" type="button" class="btn
+                      btn-primary">Save changes</button>
+                  </div>
+                </div>
+              </div>
+            </div> <!-- End modal -->
           </div> <!-- End Ignorelist  -->
           <div v-if="comp.active.startsWith('plugin')">
-            <iframe width="100%" height="100%" frameBorder="0" :src="comp.active + '/settings'"></iframe>
+            <iframe width="100%" height="100%" frameBorder="0" :src="comp.active
+              + '/settings'"></iframe>
           </div> <!-- End Plugins -->
         </div>
       </div>
     </div>
   </body>
   <script>
+  alertify.set('notifier','position', 'top-right');
   new Vue({
     el: "#app",
     data: {
@@ -180,6 +239,10 @@
       ignorelist: [],
       comp: {
         active: 'home', // e.g settings, home, users
+        ignorelist: {
+          host: "",
+          reason: ""
+        }
       }
     },
     methods: {
@@ -207,10 +270,26 @@
           _this.getIgnoreList()
         })
       },
+      addIgnore() {
+        const _this = this
+        axios.put(`/api/v1/admin/ignorelist`, {
+          host: this.comp.ignorelist.host,
+          reason: this.comp.ignorelist.reason
+        }, {withCredentials: true}).then((response) => {
+          console.log(response)
+          _this.getIgnoreList()
+          alertify.notify('sample', 'success', 5, function(){  console.log('dismissed'); });
+        })
+      },
       removeUser(username) {
         const _this = this
         axios.delete(`/api/v1/admin/user/${username}`, {withCredentials: true}).then((response) => {
           _this.getUsers()
+        })
+      },
+      restart() {
+        axios.post('/api/v1/admin/function/restart', {withCredentials: true}).then((response) => {
+          console.log(response)
         })
       }
     },
