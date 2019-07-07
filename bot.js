@@ -79,6 +79,47 @@ function createUser (username, password, role, flags = [], pluginOptions = {}, c
     }
   })
 }
+
+function updateUser (id, params = {}, cb) {
+  function callUpdate () {
+    usersDB.update({ _id: mongojs.ObjectId(id) }, {
+      $set: params },
+    (err, doc) => {
+      if (err) { console.log(err) }
+      if (cb) {
+        if (doc.n > 0) {
+          if (doc.nModified > 0) {
+            cb(err, { status: 'success' })
+          } else {
+            cb(err, { status: 'failed', text: 'no changes' })
+          }
+        } else {
+          cb(err, { status: 'failed', text: 'invalid id' })
+        }
+      }
+    })
+  }
+  if (params.password) {
+    params.password = bcrypt.hash(params.password, bcrypt.genSaltSync(10))
+  }
+  if (params.username) {
+    usersDB.findOne({ username: params.username }, (err, doc) => {
+      if (err) { console.log(err) }
+      if (doc) {
+        if (doc._id.toString() === id) {
+          callUpdate()
+        } else {
+          if (cb) { cb(err, { status: 'failed', text: 'username in use' }) }
+        }
+      } else {
+        callUpdate()
+      }
+    })
+  } else {
+    callUpdate()
+  }
+}
+
 // Create new ignore entry
 function createIgnore (host, reason, cb) {
   ignorelistDB.insert({
@@ -491,26 +532,14 @@ api.put('/admin/user/:id', [loginRequired, ownerRequired], (req, res) => {
   const [ircAccount, role] = Object.values(req.body)
   usersDB.findOne({ username: ircAccount }, (err, doc) => {
     if (err) { console.log(err) }
-    // TODO: Change var name to something else
-    const safeToUpdate = !doc || doc._id.toString() === req.params.id
-    if (safeToUpdate) {
-      usersDB.update({ _id: mongojs.ObjectId(req.params.id) }, {
-        $set: { username: ircAccount, role: role } },
-      (err, doc) => {
-        if (err) { console.log(err) }
-        if (doc.n > 0) {
-          if (doc.nModified > 0) {
-            res.send('ok')
-          } else {
-            res.send('no changes')
-          }
-        } else {
-          res.send('invalid id')
-        }
-      })
-    } else {
-      res.send('username in use')
-    }
+    updateUser(req.params.id, { username: ircAccount, role: role }, (err, status) => {
+      if (err) { console.log(err) }
+      if (status.status === 'success') {
+        res.send('it worked!')
+      } else {
+        res.send(status)
+      }
+    })
   })
 })
 
