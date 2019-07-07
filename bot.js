@@ -485,6 +485,21 @@ api.get('/admin/user/:username', [loginRequired, ownerRequired], (req, res) => {
   })
 })
 
+api.post('/admin/user', [loginRequired, ownerRequired], (req, res) => {
+  const [ircAccount, password, role] = Object.values(req.body)
+  if (ircAccount && password && role) {
+    createUser(ircAccount, password, role, [], {}, (created) => {
+      if (created) {
+        res.send({ statusText: 'success' })
+      } else {
+        res.send({ statusText: 'nah fam.' })
+      }
+    })
+  } else {
+    res.send({ statusText: '??' })
+  }
+})
+
 api.delete('/admin/user/:username', [loginRequired, ownerRequired], (req, res) => {
   usersDB.remove({ username: req.params.username }, (err, doc) => {
     if (err) { console.log(err) }
