@@ -143,19 +143,66 @@
                   <th scope="col">Password</th>
                   <th scope="col">Role</th>
                   <th scope="col">Delete</th>
+                  <th scope="col">Edit</th>
                 </tr>
               </thead>
               <tbody>
                 <tr v-for="user in users">
-                  <th scope="row">{{user.id}}</th>
+                  <th scope="row">{{user._id.toString()}}</th>
                   <td>{{user.username}}</td>
                   <td>{{user.password}}</td>
                   <td>{{user.role}}</td>
                   <td><button @click="removeUser(user.username)"
-                      class="btn btn-danger">Delete</button></td>
+                      class="btn btn-danger">Delete</button>
+                  </td>
+                  <td>
+                    <button @click="openEditUserModal(user._id.toString(), user.username, user.role)" class="btn btn-primary">Edit</button>
+                  </td>
                 </tr>
               </tbody>
             </table>
+            <!-- Modal -->
+            <div class="modal fade" id="editUserModal" tabindex="-1"
+              role="dialog" aria-labelledby="label"
+              aria-hidden="true">
+              <div class="modal-dialog" role="document">
+                <div class="modal-content">
+                  <div class="modal-header">
+                    <h5 class="modal-title" id="label">Edit User ({{comp.users.id}})</h5>
+                    <button type="button" class="close" data-dismiss="modal"
+                      aria-label="Close">
+                      <span aria-hidden="true">&times;</span>
+                    </button>
+                  </div>
+                  <div class="modal-body">
+                    <form>
+                      <div class="form-group">
+                        <label for="ircAccount">IRC Account</label>
+                        <input type="text" class="form-control"
+                          id="exampleInputEmail1" aria-describedby="irc account"
+                          placeholder="example.org"
+                          v-model="comp.users.ircAccount">
+                      </div>
+                      <div class="form-group">
+                        <label for="exampleFormControlSelect1">Example select</label>
+                        <select class="form-control" id="role"
+                          v-model="comp.users.role">
+                          <option>USER</option>
+                          <option>ADMIN</option>
+                          <option>OWNER</option>
+                        </select>
+                      </div>
+                    </form>
+                  </div>
+                  <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary"
+                      data-dismiss="modal">Close</button>
+                    <button @click="editUser" type="button" class="btn
+                      btn-primary">Save changes</button>
+                  </div>
+                </div>
+              </div>
+            </div> <!-- End modal -->
             <!-- Modal -->
             <div class="modal fade" id="addUserModal" tabindex="-1"
               role="dialog" aria-labelledby="label"
@@ -185,13 +232,14 @@
                           v-model="comp.users.password">
                       </div>
                       <div class="form-group">
-                          <label for="exampleFormControlSelect1">Example select</label>
-                          <select class="form-control" id="role" v-model="comp.users.role">
-                            <option>USER</option>
-                            <option>ADMIN</option>
-                            <option>OWNER</option>
-                          </select>
-                        </div>
+                        <label for="exampleFormControlSelect1">Example select</label>
+                        <select class="form-control" id="role"
+                          v-model="comp.users.role">
+                          <option>USER</option>
+                          <option>ADMIN</option>
+                          <option>OWNER</option>
+                        </select>
+                      </div>
                     </form>
                   </div>
                   <div class="modal-footer">
@@ -299,10 +347,11 @@
           reason: ""
         },
         users: {
+          id: "",
           ircAccount: "",
           password: "",
           role: ""
-        }
+        },
       }
     },
     methods: {
@@ -345,6 +394,23 @@
         axios.delete(`/api/v1/admin/user/${username}`, {withCredentials: true}).then((response) => {
           _this.getUsers()
         })
+      },
+      editUser() {
+        const _this = this
+        axios.put(`/api/v1/admin/user/${this.comp.users.id}`,{
+          ircAccount: this.comp.users.ircAccount,
+          role: this.comp.users.role
+        },
+        {withCredentials: true}).then((response) => {
+          console.log(response)
+          _this.getUsers()
+        }).catch((err) => {console.error(err)})
+      },
+      openEditUserModal(id, ircAccount, role) {
+        this.comp.users.id = id
+        this.comp.users.ircAccount = ircAccount
+        this.comp.users.role = role
+        $('#editUserModal').modal('toggle')
       },
       addUser() {
         const _this = this

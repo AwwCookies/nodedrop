@@ -478,10 +478,36 @@ api.get('/admin/users', [loginRequired, ownerRequired], (req, res) => {
   })
 })
 
+// TODO: Change to id
 api.get('/admin/user/:username', [loginRequired, ownerRequired], (req, res) => {
   usersDB.findOne({ username: req.params.username }, (err, doc) => {
     if (err) { console.log(err) }
     res.send({ user: doc })
+  })
+})
+
+api.put('/admin/user/:id', [loginRequired, ownerRequired], (req, res) => {
+  const [ircAccount, role] = Object.values(req.body)
+  usersDB.findOne({ username: ircAccount }, (err, doc) => {
+    if (err) { console.log(err) }
+    if (!doc) {
+      usersDB.update({ _id: mongojs.ObjectId(req.params.id) }, {
+        $set: { username: ircAccount, role: role } },
+      (err, doc) => {
+        if (err) { console.log(err) }
+        if (doc.n > 0) {
+          if (doc.nModified > 0) {
+            res.send('ok')
+          } else {
+            res.send('no changes')
+          }
+        } else {
+          res.send('invalid id')
+        }
+      })
+    } else {
+      res.send('username in use')
+    }
   })
 })
 
@@ -500,6 +526,7 @@ api.post('/admin/user', [loginRequired, ownerRequired], (req, res) => {
   }
 })
 
+// TODO: Change to id
 api.delete('/admin/user/:username', [loginRequired, ownerRequired], (req, res) => {
   usersDB.remove({ username: req.params.username }, (err, doc) => {
     if (err) { console.log(err) }
