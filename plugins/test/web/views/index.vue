@@ -1,0 +1,3 @@
+<template>
+    <h1>Hello from plugin!</h1>
+</template>

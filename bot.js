@@ -14,16 +14,6 @@ const config = require('./config')
 const events = new EventEmitter()
 
 // global object
-// Easy way to pass QoL functions and vars to plugins
-const N = {
-  loginRequired,
-  ownerRequired,
-  createUser,
-  updateUser,
-  createIgnore,
-  registerCommand,
-  config
-}
 
 const bot = new IRC.Client()
 
@@ -58,12 +48,20 @@ function registerCommand (name, type, match, access, help, func) {
   }) // end events.on
   console.log(`🚀 Command ${name} registed!`)
 }
-
+const Servue = require('servue')
 const web = express()
 web.use(bodyParser.json())
 web.use(bodyParser.urlencoded({ extended: false }))
 web.use(cookieParser())
 web.use('/public', express.static('./web/public'))
+
+var servue = new Servue()
+servue.resources = path.resolve(__dirname, 'web/views')
+servue.precompile(path.resolve(__dirname, 'web/views'))
+
+web.get('/vue', async (req, res) => {
+  res.send(await servue.render('home')) // renders "./resources/home.vue"
+})
 
 // Connect to local mongodb and select 'nodedrop' database
 const db = mongojs('nodedrop-mongo/nodedrop')
@@ -207,8 +205,25 @@ function loadPlugin (folder) {
     pluginInfo.database.dbs.forEach((dbName) => {
       dbs[dbName] = db.collection(`plugin-${pluginInfo.name}-${dbName}`)
     })
+    // setup Servue
+    let servue = new Servue()
+    servue.resources = path.resolve(__dirname, `plugins/${folder}/web/views`)
+    servue.precompile(path.resolve(__dirname, `plugins/${folder}/web/views`))
     // actual load the plugin
-    require('./plugins/' + folder)(bot, events, dbs, router, N)
+    require('./plugins/' + folder)({
+      bot,
+      events,
+      dbs,
+      router,
+      servue,
+      loginRequired,
+      ownerRequired,
+      createUser,
+      updateUser,
+      createIgnore,
+      registerCommand,
+      config
+    })
     console.log(`${folder} loaded! ✅`)
   } catch (e) {
     console.log(`Error loading '${folder}: ${e}' ❌`)
