@@ -8,19 +8,34 @@ const mongojs = require('mongojs')
 const bcrypt = require('bcryptjs')
 const cookieParser = require('cookie-parser')
 const jwt = require('jsonwebtoken')
+const Servue = require('servue')
 const EventEmitter = require('events')
 const config = require('./config')
 
 const events = new EventEmitter()
-
-// global object
-
 const bot = new IRC.Client()
+const web = express()
+const servue = new Servue()
+
+servue.resources = path.resolve(__dirname, 'web/views')
+servue.precompile(path.resolve(__dirname, 'web/views'))
 
 bot.connect(config.irc)
 bot.on('registered', () => bot.join('#Aww'))
 bot.cmdHelp = {}
 
+web.use(bodyParser.json())
+web.use(bodyParser.urlencoded({ extended: false }))
+web.use(cookieParser())
+web.use('/public', express.static('./web/public'))
+
+// Connect to local mongodb and select 'nodedrop' database
+const db = mongojs('nodedrop-mongo/nodedrop')
+// Create owner user
+const usersDB = db.collection('users')
+const ignorelistDB = db.collection('ignorelist')
+
+/* Global Bot functions */
 function registerCommand (name, type, match, access, help, func) {
   const types = ['message', 'pm']
   // check if invaild type
@@ -48,26 +63,7 @@ function registerCommand (name, type, match, access, help, func) {
   }) // end events.on
   console.log(`🚀 Command ${name} registed!`)
 }
-const Servue = require('servue')
-const web = express()
-web.use(bodyParser.json())
-web.use(bodyParser.urlencoded({ extended: false }))
-web.use(cookieParser())
-web.use('/public', express.static('./web/public'))
-
-var servue = new Servue()
-servue.resources = path.resolve(__dirname, 'web/views')
-servue.precompile(path.resolve(__dirname, 'web/views'))
-
-web.get('/vue', async (req, res) => {
-  res.send(await servue.render('home')) // renders "./resources/home.vue"
-})
-
-// Connect to local mongodb and select 'nodedrop' database
-const db = mongojs('nodedrop-mongo/nodedrop')
-// Create owner user
-const usersDB = db.collection('users')
-const ignorelistDB = db.collection('ignorelist')
+/* End Global bot function */
 
 /* Database functions */
 // Create new user
@@ -173,7 +169,8 @@ function loadPlugin (folder) {
     'version': expect.any(String),
     'database': { dbs: expect.any(Array) },
     'webPrefix': expect.any(String),
-    'webSettings': expect.any(Boolean)
+    'webSettings': expect.any(Boolean),
+    'useServue': expect.any(Boolean)
   })
   // Check if plugin already loaded
   if (plugins.find((plugin) => {
@@ -207,8 +204,11 @@ function loadPlugin (folder) {
     })
     // setup Servue
     let servue = new Servue()
-    servue.resources = path.resolve(__dirname, `plugins/${folder}/web/views`)
-    servue.precompile(path.resolve(__dirname, `plugins/${folder}/web/views`))
+    if (pluginInfo.useServue) {
+      const viewsFolder = path.resolve(__dirname, `plugins/${folder}/web/views`)
+      servue.resources = viewsFolder
+      servue.precompile(viewsFolder)
+    }
     // actual load the plugin
     require('./plugins/' + folder)({
       bot,

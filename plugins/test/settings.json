@@ -5,5 +5,6 @@
     "version": "0.0.1",
     "database": {"dbs": ["testing"]},
     "webPrefix": "test",
-    "webSettings": true
+    "webSettings": true,
+    "useServue": true
 }
