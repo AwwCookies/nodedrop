@@ -22,7 +22,7 @@ servue.precompile(path.resolve(__dirname, 'web/views')).then(() => {
   console.log('--> web/views vue pages precompiled <--')
 })
 
-// bot.connect(config.irc)
+bot.connect(config.irc)
 bot.on('registered', () => bot.join('#Aww'))
 bot.cmdHelp = {}
 
@@ -499,8 +499,9 @@ function adminRequired (req, res, next) {
   }
 }
 
-web.get('/', loginRequired, (req, res) => {
-  res.sendFile(path.join(__dirname, 'web/index.html'))
+web.get('/', loginRequired, async (req, res) => {
+  res.send(await servue.render('index'))
+  // res.sendFile(path.join(__dirname, 'web/index.html'))
 })
 
 web.get('/admin/users', [loginRequired, ownerRequired], (req, res) => {
