@@ -18,9 +18,11 @@ const web = express()
 const servue = new Servue()
 
 servue.resources = path.resolve(__dirname, 'web/views')
-servue.precompile(path.resolve(__dirname, 'web/views'))
+servue.precompile(path.resolve(__dirname, 'web/views')).then(() => {
+  console.log('--> web/views vue pages precompiled <--')
+})
 
-bot.connect(config.irc)
+// bot.connect(config.irc)
 bot.on('registered', () => bot.join('#Aww'))
 bot.cmdHelp = {}
 
@@ -204,10 +206,14 @@ function loadPlugin (folder) {
     })
     // setup Servue
     let servue = new Servue()
+    servue.mode = 'production'
     if (pluginInfo.useServue) {
       const viewsFolder = path.resolve(__dirname, `plugins/${folder}/web/views`)
       servue.resources = viewsFolder
-      servue.precompile(viewsFolder)
+      servue.nodemodules = path.resolve(__dirname, 'node_modules')
+      servue.precompile(viewsFolder).then(() => {
+        console.log(`--> plugins/${folder}/web/views/ vue pages precompiled <--`)
+      })
     }
     // actual load the plugin
     require('./plugins/' + folder)({
