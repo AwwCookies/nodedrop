@@ -10,14 +10,11 @@
             placeholder="irc account"
           ></b-form-input>
         </b-form-group>
+
         <b-form-group id="role" label="Role" label-for="role">
-          <b-form-select v-model="edit.role" :options="['USER', 'ADMIN', 'OWNER']"></b-form-select>
+          <b-form-input id="role" v-model="edit.role" required placeholder="Role"></b-form-input>
         </b-form-group>
       </b-form>
-      <template slot="modal-footer" slot-scope="{ ok, cancel, hide }">
-        <b-button variant="success" @click="editUser(edit.ircAccount, edit.role)">OK</b-button>
-        <b-button variant="danger" @click="cancel()">Cancel</b-button>
-      </template>
     </b-modal>
 
     <b-button variant="primary">Add User</b-button>
@@ -70,11 +67,10 @@ export default {
         });
     },
     editUser(ircAccount, role) {
-      console.log("editing");
       const _this = this;
       axios
         .put(
-          `/api/v1/admin/user/${this.edit.id}`,
+          `/api/v1/admin/user/${this.comp.users.id}`,
           {
             ircAccount,
             role
@@ -82,22 +78,26 @@ export default {
           { withCredentials: true }
         )
         .then(response => {
+          console.log(response);
           _this.getUsers();
-          this.$bvModal.hide("edit");
         })
         .catch(err => {
           console.error(err);
         });
     },
-    getUsers() {
+    async getUsers() {
       const _this = this;
       axios
         .get("/api/v1/admin/users", { withCredentials: true })
         .then(response => {
+          console.log(response);
           _this.users = response.data.users;
         });
     }
   }
+  // mounted() {
+  //   this.getUsers();
+  // }
 };
 </script>
 

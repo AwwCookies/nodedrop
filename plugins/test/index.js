@@ -1,10 +1,10 @@
 const path = require('path')
 
 module.exports = function ({ bot, servue, router, registerCommand, loginRequired }) {
-  registerCommand('!example', 'message', /^(!example)$/, 'ALL',
-    'Example command | !example',
+  registerCommand('!test', 'message', /^(!test)$/, 'ALL',
+    'Test command | !test',
     (event) => {
-      bot.say(event.target, 'Hello from example')
+      bot.say(event.target, 'Hello from test')
     })
   router.get('/', [loginRequired], (req, res) => {
     res.send('It works!')
