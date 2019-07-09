@@ -545,6 +545,17 @@ api.get('/admin/ignorelist', [loginRequired, ownerRequired], (req, res) => {
   })
 })
 
+api.delete('/admin/ignorelist', [loginRequired, ownerRequired], (req, res) => {
+  ignorelistDB.remove({}, (err, doc) => {
+    if (err) { console.log(err) }
+    if (doc.deletedCount > 0) {
+      res.send({ statusText: 'done' })
+    } else {
+      res.send({ statusText: 'failed' })
+    }
+  })
+})
+
 api.delete('/admin/ignorelist/:id', [loginRequired, ownerRequired], (req, res) => {
   ignorelistDB.remove({ _id: mongojs.ObjectId(req.params.id) }, (err, doc) => {
     if (err) { console.log(err) }
