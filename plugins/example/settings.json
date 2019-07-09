@@ -1,0 +1,10 @@
+{
+    "name": "Example",
+    "description": "Eample Plugin",
+    "author": "AwwCookies",
+    "version": "0.0.1",
+    "database": {"dbs": ["example"]},
+    "webPrefix": "example",
+    "webSettings": true,
+    "useServue": true
+}

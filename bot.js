@@ -11,22 +11,137 @@ const jwt = require('jsonwebtoken')
 const Servue = require('servue')
 const EventEmitter = require('events')
 const config = require('./config')
-const { createIgnore, createUser, updateUser } = require('./db-util')
-const { loginRequired, ownerRequired, adminRequired } = require('./middleware.js')
-const { web } = require('./web-server')
 
 const events = new EventEmitter()
 const bot = new IRC.Client()
+const web = express()
+const servue = new Servue()
+
+servue.resources = path.resolve(__dirname, 'web/views')
+servue.precompile(path.resolve(__dirname, 'web/views')).then(() => {
+  console.log('--> web/views vue pages precompiled <--')
+})
 
 bot.connect(config.irc)
 bot.on('registered', () => bot.join('#Aww'))
 bot.cmdHelp = {}
 
+web.use(bodyParser.json())
+web.use(bodyParser.urlencoded({ extended: false }))
+web.use(cookieParser())
+web.use('/public', express.static('./web/public'))
+
 // Connect to local mongodb and select 'nodedrop' database
-const db = mongojs(config.mongodb)
+const db = mongojs('nodedrop-mongo/nodedrop')
 // Create owner user
 const usersDB = db.collection('users')
 const ignorelistDB = db.collection('ignorelist')
+
+/* Global Bot functions */
+function registerCommand (name, type, match, access, help, func) {
+  const types = ['message', 'pm']
+  // check if invaild type
+  if (!types.includes(type)) { console.error('ERROR: Invalid type passed to registerCommand') }
+  expect(func).toEqual(expect.any(Function))
+  bot.cmdHelp[name] = help
+  events.on(type, (event) => {
+    if (event.message.match(match)) {
+      if (access === 'ALL') {
+        func(event)
+      } else if (access === 'ADMIN') {
+        getUser(event.nick, (user) => {
+          if (user.role === 'ADMIN' || user.role === 'OWNER') {
+            func(event)
+          }
+        })
+      } else if (access === 'OWNER') {
+        getUser(event.nick, (user) => {
+          if (user.role === 'OWNER') {
+            func(event)
+          }
+        })
+      } // end owner else if
+    } // end if match
+  }) // end events.on
+  console.log(`🚀 Command ${name} registed!`)
+}
+/* End Global bot function */
+
+/* Database functions */
+// Create new user
+function createUser (username, password, role, flags = [], pluginOptions = {}, cb) {
+  usersDB.findOne({ username: username }, (err, doc) => {
+    if (err) { console.log(err) } else {
+      if (!doc) {
+        usersDB.insert({
+          username,
+          password: bcrypt.hashSync(password, bcrypt.genSaltSync(12)),
+          role,
+          flags,
+          pluginOptions
+        })
+        if (cb) { cb(err, true) }
+      } else {
+        if (cb) { cb(err, false) }
+      }
+    }
+  })
+}
+
+function updateUser (id, params = {}, cb) {
+  function callUpdate () {
+    usersDB.update({ _id: mongojs.ObjectId(id) }, {
+      $set: params },
+    (err, doc) => {
+      if (err) { console.log(err) }
+      if (cb) {
+        if (doc.n > 0) {
+          if (doc.nModified > 0) {
+            cb(err, { status: 'success' })
+          } else {
+            cb(err, { status: 'failed', text: 'no changes' })
+          }
+        } else {
+          cb(err, { status: 'failed', text: 'invalid id' })
+        }
+      }
+    })
+  }
+  if (params.password) {
+    params.password = bcrypt.hash(params.password, bcrypt.genSaltSync(10))
+  }
+  if (params.username) {
+    usersDB.findOne({ username: params.username }, (err, doc) => {
+      if (err) { console.log(err) }
+      if (doc) {
+        if (doc._id.toString() === id) {
+          callUpdate()
+        } else {
+          if (cb) { cb(err, { status: 'failed', text: 'username in use' }) }
+        }
+      } else {
+        callUpdate()
+      }
+    })
+  } else {
+    callUpdate()
+  }
+}
+
+// Create new ignore entry
+function createIgnore (host, reason, cb) {
+  ignorelistDB.insert({
+    host,
+    reason,
+    time: new Date()
+  }, (err, doc) => {
+    if (err) { console.log(err) }
+    if (cb) {
+      cb(err, Boolean(doc))
+    }
+  })
+}
+/* End Database Functions */
 
 createIgnore('snoonet.org/user/Awwx', 'spammer', (err, created) => {
   if (err) { console.log(err) }
@@ -138,34 +253,6 @@ fs.readdir(path.join(__dirname, 'plugins'), function (err, items) {
 /* End plugin stuff */
 
 /* Bot Commands and Functions */
-function registerCommand (name, type, match, access, help, func) {
-  const types = ['message', 'pm']
-  // check if invaild type
-  if (!types.includes(type)) { console.error('ERROR: Invalid type passed to registerCommand') }
-  expect(func).toEqual(expect.any(Function))
-  bot.cmdHelp[name] = help
-  events.on(type, (event) => {
-    if (event.message.match(match)) {
-      if (access === 'ALL') {
-        func(event)
-      } else if (access === 'ADMIN') {
-        getUser(event.nick, (user) => {
-          if (user.role === 'ADMIN' || user.role === 'OWNER') {
-            func(event)
-          }
-        })
-      } else if (access === 'OWNER') {
-        getUser(event.nick, (user) => {
-          if (user.role === 'OWNER') {
-            func(event)
-          }
-        })
-      } // end owner else if
-    } // end if match
-  }) // end events.on
-  console.log(`🚀 Command ${name} registed!`)
-}
-
 function getUser (nick, cb) {
   bot.whois(nick, (whois) => {
     if (whois.account) {
@@ -363,6 +450,86 @@ bot.on('privmsg', (event) => {
 })
 /* End Map client events to `events` */
 
+/* Web Stuff */
+// json web token middleware
+async function loginRequired (req, res, next) {
+  const token = req.cookies.token
+  if (typeof token !== 'undefined') {
+    jwt.verify(token, config.secert, async (err, authData) => {
+      if (err) {
+        res.status(401).json({
+          statusText: "You're not authed"
+        })
+      } else {
+        usersDB.findOne({ username: authData.username }, (err, doc) => {
+          if (err) { console.log(err) } else {
+            if (!doc) {
+              res.status(401).json({
+                statusText: 'Invalid auth data'
+              })
+            } else {
+              req.token = authData
+              req.user = doc
+              next()
+            }
+          }
+        })
+      }
+    })
+  } else {
+    res.status(401).json({
+      statusText: 'Not logged in'
+    })
+  }
+}
+
+function ownerRequired (req, res, next) {
+  if (req.user.role === 'OWNER') {
+    next()
+  } else {
+    res.send({ statusText: 'Invalid user' })
+  }
+}
+
+function adminRequired (req, res, next) {
+  if (req.user.role === 'OWNER' || req.user.role === 'ADMIN') {
+    next()
+  } else {
+    res.send({ statusText: 'Invalid user' })
+  }
+}
+
+web.get('/', loginRequired, async (req, res) => {
+  res.send(await servue.render('index'))
+  // res.sendFile(path.join(__dirname, 'web/index.html'))
+})
+
+web.get('/admin/users', [loginRequired, ownerRequired], (req, res) => {
+  res.sendFile(path.join(__dirname, 'web/admin/users.html'))
+})
+
+web.get('/auth', (req, res) => {
+  res.sendFile(path.join(__dirname, 'web/login.html'))
+})
+
+web.post('/auth', (req, res) => {
+  usersDB.findOne({ username: req.body.username }, (err, doc) => {
+    if (err) { console.log(err) } else {
+      if (!doc) {
+        res.status(401).send('Invalid Login')
+      } else {
+        console.log(doc)
+        if (bcrypt.compareSync(req.body.password, doc.password)) {
+          res.cookie('token', jwt.sign({ username: req.body.username }, config.secert))
+          res.status(200).send('done!')
+        } else {
+          console.log('wrong password?')
+        }
+      }
+    }
+  })
+})
+
 /* API v1 Server */
 const api = express.Router()
 web.use('/api/v1/', api)
@@ -375,6 +542,17 @@ api.get('/admin/ignorelist', [loginRequired, ownerRequired], (req, res) => {
   ignorelistDB.find({}, (err, docs) => {
     if (err) { console.log(err) }
     res.send({ 'ignorelist': docs })
+  })
+})
+
+api.delete('/admin/ignorelist', [loginRequired, ownerRequired], (req, res) => {
+  ignorelistDB.remove({}, (err, doc) => {
+    if (err) { console.log(err) }
+    if (doc.deletedCount > 0) {
+      res.send({ statusText: 'done' })
+    } else {
+      res.send({ statusText: 'failed' })
+    }
   })
 })
 

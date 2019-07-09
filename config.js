@@ -16,6 +16,5 @@ module.exports = {
   },
   cmdPrefix: '!',
   secert: 'cookies',
-  restartDelay: 20000, // 20 seconds
-  mongodb: 'nodedrop-mongo/nodedrop'
+  restartDelay: 20000 // 20 seconds
 }
