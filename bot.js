@@ -12,6 +12,7 @@ const Servue = require('servue')
 const EventEmitter = require('events')
 const config = require('./config')
 const { createIgnore, createUser, updateUser } = require('./db-util')
+const { loginRequired, ownerRequired, adminRequired } = require('./middleware.js')
 
 const events = new EventEmitter()
 const bot = new IRC.Client()
@@ -37,36 +38,6 @@ const db = mongojs(config.mongodb)
 // Create owner user
 const usersDB = db.collection('users')
 const ignorelistDB = db.collection('ignorelist')
-
-/* Global Bot functions */
-function registerCommand (name, type, match, access, help, func) {
-  const types = ['message', 'pm']
-  // check if invaild type
-  if (!types.includes(type)) { console.error('ERROR: Invalid type passed to registerCommand') }
-  expect(func).toEqual(expect.any(Function))
-  bot.cmdHelp[name] = help
-  events.on(type, (event) => {
-    if (event.message.match(match)) {
-      if (access === 'ALL') {
-        func(event)
-      } else if (access === 'ADMIN') {
-        getUser(event.nick, (user) => {
-          if (user.role === 'ADMIN' || user.role === 'OWNER') {
-            func(event)
-          }
-        })
-      } else if (access === 'OWNER') {
-        getUser(event.nick, (user) => {
-          if (user.role === 'OWNER') {
-            func(event)
-          }
-        })
-      } // end owner else if
-    } // end if match
-  }) // end events.on
-  console.log(`🚀 Command ${name} registed!`)
-}
-/* End Global bot function */
 
 createIgnore('snoonet.org/user/Awwx', 'spammer', (err, created) => {
   if (err) { console.log(err) }
@@ -178,6 +149,34 @@ fs.readdir(path.join(__dirname, 'plugins'), function (err, items) {
 /* End plugin stuff */
 
 /* Bot Commands and Functions */
+function registerCommand (name, type, match, access, help, func) {
+  const types = ['message', 'pm']
+  // check if invaild type
+  if (!types.includes(type)) { console.error('ERROR: Invalid type passed to registerCommand') }
+  expect(func).toEqual(expect.any(Function))
+  bot.cmdHelp[name] = help
+  events.on(type, (event) => {
+    if (event.message.match(match)) {
+      if (access === 'ALL') {
+        func(event)
+      } else if (access === 'ADMIN') {
+        getUser(event.nick, (user) => {
+          if (user.role === 'ADMIN' || user.role === 'OWNER') {
+            func(event)
+          }
+        })
+      } else if (access === 'OWNER') {
+        getUser(event.nick, (user) => {
+          if (user.role === 'OWNER') {
+            func(event)
+          }
+        })
+      } // end owner else if
+    } // end if match
+  }) // end events.on
+  console.log(`🚀 Command ${name} registed!`)
+}
+
 function getUser (nick, cb) {
   bot.whois(nick, (whois) => {
     if (whois.account) {
@@ -376,53 +375,6 @@ bot.on('privmsg', (event) => {
 /* End Map client events to `events` */
 
 /* Web Stuff */
-// json web token middleware
-async function loginRequired (req, res, next) {
-  const token = req.cookies.token
-  if (typeof token !== 'undefined') {
-    jwt.verify(token, config.secert, async (err, authData) => {
-      if (err) {
-        res.status(401).json({
-          statusText: "You're not authed"
-        })
-      } else {
-        usersDB.findOne({ username: authData.username }, (err, doc) => {
-          if (err) { console.log(err) } else {
-            if (!doc) {
-              res.status(401).json({
-                statusText: 'Invalid auth data'
-              })
-            } else {
-              req.token = authData
-              req.user = doc
-              next()
-            }
-          }
-        })
-      }
-    })
-  } else {
-    res.status(401).json({
-      statusText: 'Not logged in'
-    })
-  }
-}
-
-function ownerRequired (req, res, next) {
-  if (req.user.role === 'OWNER') {
-    next()
-  } else {
-    res.send({ statusText: 'Invalid user' })
-  }
-}
-
-function adminRequired (req, res, next) {
-  if (req.user.role === 'OWNER' || req.user.role === 'ADMIN') {
-    next()
-  } else {
-    res.send({ statusText: 'Invalid user' })
-  }
-}
 
 web.get('/', loginRequired, async (req, res) => {
   res.send(await servue.render('index'))

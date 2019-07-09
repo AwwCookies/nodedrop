@@ -4,7 +4,7 @@ const config = require('./config')
 
 // Connect to local mongodb and select 'nodedrop' database
 const db = mongojs(config.mongodb)
-// Create owner user
+
 const usersDB = db.collection('users')
 const ignorelistDB = db.collection('ignorelist')
 
