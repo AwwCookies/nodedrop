@@ -13,25 +13,14 @@ const EventEmitter = require('events')
 const config = require('./config')
 const { createIgnore, createUser, updateUser } = require('./db-util')
 const { loginRequired, ownerRequired, adminRequired } = require('./middleware.js')
+const { web } = require('./web-server')
 
 const events = new EventEmitter()
 const bot = new IRC.Client()
-const web = express()
-const servue = new Servue()
-
-servue.resources = path.resolve(__dirname, 'web/views')
-servue.precompile(path.resolve(__dirname, 'web/views')).then(() => {
-  console.log('--> web/views vue pages precompiled <--')
-})
 
 bot.connect(config.irc)
 bot.on('registered', () => bot.join('#Aww'))
 bot.cmdHelp = {}
-
-web.use(bodyParser.json())
-web.use(bodyParser.urlencoded({ extended: false }))
-web.use(cookieParser())
-web.use('/public', express.static('./web/public'))
 
 // Connect to local mongodb and select 'nodedrop' database
 const db = mongojs(config.mongodb)
@@ -373,39 +362,6 @@ bot.on('privmsg', (event) => {
   })
 })
 /* End Map client events to `events` */
-
-/* Web Stuff */
-
-web.get('/', loginRequired, async (req, res) => {
-  res.send(await servue.render('index'))
-  // res.sendFile(path.join(__dirname, 'web/index.html'))
-})
-
-web.get('/admin/users', [loginRequired, ownerRequired], (req, res) => {
-  res.sendFile(path.join(__dirname, 'web/admin/users.html'))
-})
-
-web.get('/auth', (req, res) => {
-  res.sendFile(path.join(__dirname, 'web/login.html'))
-})
-
-web.post('/auth', (req, res) => {
-  usersDB.findOne({ username: req.body.username }, (err, doc) => {
-    if (err) { console.log(err) } else {
-      if (!doc) {
-        res.status(401).send('Invalid Login')
-      } else {
-        console.log(doc)
-        if (bcrypt.compareSync(req.body.password, doc.password)) {
-          res.cookie('token', jwt.sign({ username: req.body.username }, config.secert))
-          res.status(200).send('done!')
-        } else {
-          console.log('wrong password?')
-        }
-      }
-    }
-  })
-})
 
 /* API v1 Server */
 const api = express.Router()
