@@ -19,14 +19,13 @@
               <b-nav-item active>Home</b-nav-item>
               <b-nav-item>Settings</b-nav-item>
               <b-nav-item @click="activeView = 'usertable'">Users</b-nav-item>
-              <b-nav-item @click="activeView = 'ignoretable'">Ignore List</b-nav-item>
+              <b-nav-item>Ignore List</b-nav-item>
               <b-nav-item disabled>Plugins</b-nav-item>
               <b-nav-item v-for="n in ['Spotify', 'Soundcloud']">{{n}}</b-nav-item>
             </b-nav>
           </b-col>
           <b-col cols="11" style="background-color: grey;">
             <UserTable v-if="activeView === 'usertable'"></UserTable>
-            <IgnoreListTable v-if="activeView === 'ignoretable'"></IgnoreListTable>
           </b-col>
         </b-row>
       </div>
@@ -41,12 +40,11 @@ import BootstrapVue from "bootstrap-vue";
 import "bootstrap/dist/css/bootstrap.css";
 import "bootstrap-vue/dist/bootstrap-vue.css";
 import UserTable from "components/tables/UserTable.vue";
-import IgnoreListTable from "components/tables/IgnoreListTable.vue"
 
 Vue.use(BootstrapVue);
 export default {
   name: "Nodedrop",
-  components: { UserTable, IgnoreListTable },
+  components: { UserTable },
   data() {
     return {
       users: [],

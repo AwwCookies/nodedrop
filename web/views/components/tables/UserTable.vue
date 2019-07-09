@@ -1,35 +1,15 @@
 <template>
   <div>
-    <b-modal id="edit" :title="'Edit User (' + edit.id +')'">
-      <b-form>
-        <b-form-group id="ircAccount" label="ircAccount" label-for="ircAccount">
-          <b-form-input
-            id="ircAccount"
-            v-model="edit.ircAccount"
-            required
-            placeholder="irc account"
-          ></b-form-input>
-        </b-form-group>
-
-        <b-form-group id="role" label="Role" label-for="role">
-          <b-form-input id="role" v-model="edit.role" required placeholder="Role"></b-form-input>
-        </b-form-group>
-      </b-form>
-    </b-modal>
-
     <b-button variant="primary">Add User</b-button>
     <b-table striped hover :items="users" :fields="['username', 'role', 'edit', 'delete']">
       <template slot="edit" slot-scope="data">
-        <b-button
-          @click="openEditUserModal(data.item._id.toString(), data.item.username, data.item.role)"
-          variant="info"
-        >Edit</b-button>
+        <b-button variant="info">Edit</b-button>
       </template>
       <template slot="delete" slot-scope="data">
         <b-button @click="removeUser(data.item._id.toString())" variant="danger">Delete</b-button>
       </template>
     </b-table>
-    <b-button @click="getUsers">Refresh</b-button>
+    <b-button @click="getUsers">Load</b-button>
   </div>
 </template>
 
@@ -40,24 +20,13 @@ export default {
   data() {
     return {
       users: [],
-      fields: ["username", "role"],
-      edit: {
-        ircAccount: "",
-        role: "",
-        id: ""
-      }
+      fields: ["username", "role"]
     };
   },
   mounted() {
     this.getUsers();
   },
   methods: {
-    openEditUserModal(id, ircAccount, role) {
-      this.edit.id = id;
-      this.edit.ircAccount = ircAccount;
-      this.edit.role = role;
-      this.$bvModal.show("edit");
-    },
     removeUser(id) {
       const _this = this;
       axios
