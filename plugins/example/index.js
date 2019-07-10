@@ -1,4 +1,5 @@
 const path = require('path')
+const lodash = require('lodash')
 
 module.exports = function ({ bot, servue, router, registerCommand, loginRequired }) {
   registerCommand('!example', 'message', /^(!example)$/, 'ALL',

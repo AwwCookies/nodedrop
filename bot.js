@@ -172,7 +172,8 @@ function loadPlugin (folder) {
     'database': { dbs: expect.any(Array) },
     'webPrefix': expect.any(String),
     'webSettings': expect.any(Boolean),
-    'useServue': expect.any(Boolean)
+    'useServue': expect.any(Boolean),
+    'packages': expect.any(Array)
   })
   // Check if plugin already loaded
   if (plugins.find((plugin) => {
@@ -193,6 +194,11 @@ function loadPlugin (folder) {
   )
   plugins.push(pluginInfo)
   // install plugin pkgs
+  //TODO: find a better way to do this
+  const shelljs = require('shelljs')
+  shelljs.cd(`${__dirname}/plugins/example/`)
+  shelljs.exec(`npm install`)
+  shelljs.cd(__dirname)
   // build plugin params
   try {
     const router = express.Router()

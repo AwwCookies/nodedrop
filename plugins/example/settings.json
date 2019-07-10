@@ -6,5 +6,6 @@
     "database": {"dbs": ["example"]},
     "webPrefix": "example",
     "webSettings": true,
-    "useServue": true
+    "useServue": true,
+    "packages": ["lodash"]
 }
