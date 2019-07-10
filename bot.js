@@ -192,6 +192,7 @@ function loadPlugin (folder) {
     `\n\t🤖 Version: ${pluginInfo.version}`
   )
   plugins.push(pluginInfo)
+  // install plugin pkgs
   // build plugin params
   try {
     const router = express.Router()
@@ -508,8 +509,9 @@ web.get('/admin/users', [loginRequired, ownerRequired], (req, res) => {
   res.sendFile(path.join(__dirname, 'web/admin/users.html'))
 })
 
-web.get('/auth', (req, res) => {
-  res.sendFile(path.join(__dirname, 'web/login.html'))
+web.get('/auth', async (req, res) => {
+  // res.sendFile(path.join(__dirname, 'web/login.html'))
+  res.send(await servue.render('login'))
 })
 
 web.post('/auth', (req, res) => {
