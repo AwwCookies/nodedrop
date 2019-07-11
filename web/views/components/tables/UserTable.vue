@@ -2,7 +2,7 @@
   <div>
     <b-modal id="edit" :title="'Edit User (' + edit.id +')'">
       <b-form>
-        <b-form-group id="ircAccount" label="ircAccount" label-for="ircAccount">
+        <b-form-group id="ircAccount" label="IRC Account" label-for="ircAccount">
           <b-form-input
             id="ircAccount"
             v-model="edit.ircAccount"
@@ -15,12 +15,39 @@
         </b-form-group>
       </b-form>
       <template slot="modal-footer" slot-scope="{ ok, cancel, hide }">
-        <b-button variant="success" @click="editUser(edit.ircAccount, edit.role)">OK</b-button>
+        <b-button variant="success" @click="editUser()">OK</b-button>
+        <b-button variant="danger" @click="cancel()">Cancel</b-button>
+      </template>
+    </b-modal>
+    <b-modal id="add" :title="'Add User'">
+      <b-form>
+        <b-form-group id="ircAccount" label="IRC Account" label-for="ircAccount">
+          <b-form-input
+            id="ircAccount"
+            v-model="edit.ircAccount"
+            required
+            placeholder="irc account"
+          ></b-form-input>
+        </b-form-group>
+        <b-form-group id="password" label="Password" label-for="password">
+          <b-form-input
+            id="password"
+            v-model="edit.password"
+            required
+            placeholder="password"
+          ></b-form-input>
+        </b-form-group>
+        <b-form-group id="role" label="Role" label-for="role">
+          <b-form-select v-model="edit.role" :options="['USER', 'ADMIN', 'OWNER']"></b-form-select>
+        </b-form-group>
+      </b-form>
+      <template slot="modal-footer" slot-scope="{ ok, cancel, hide }">
+        <b-button variant="success" @click="addUser()">OK</b-button>
         <b-button variant="danger" @click="cancel()">Cancel</b-button>
       </template>
     </b-modal>
 
-    <b-button variant="primary">Add User</b-button>
+    <b-button variant="primary" @click="$bvModal.show('add')">Add User</b-button>
     <b-table striped hover :items="users" :fields="['username', 'role', 'edit', 'delete']">
       <template slot="edit" slot-scope="data">
         <b-button
@@ -47,7 +74,8 @@ export default {
       edit: {
         ircAccount: "",
         role: "",
-        id: ""
+        id: "",
+        password: ""
       }
     };
   },
@@ -55,6 +83,26 @@ export default {
     this.getUsers();
   },
   methods: {
+    addUser() {
+      const _this = this;
+      axios
+        .post(
+          `/api/v1/admin/user`,
+          {
+            ircAccount: this.edit.ircAccount,
+            password: this.edit.password,
+            role: this.edit.role
+          },
+          { withCredentials: true }
+        )
+        .then(response => {
+          console.log(response);
+          _this.getUsers();
+        })
+        .catch(err => {
+          console.error(err);
+        });
+    },
     openEditUserModal(id, ircAccount, role) {
       this.edit.id = id;
       this.edit.ircAccount = ircAccount;
@@ -69,15 +117,15 @@ export default {
           _this.getUsers();
         });
     },
-    editUser(ircAccount, role) {
+    editUser() {
       console.log("editing");
       const _this = this;
       axios
         .put(
           `/api/v1/admin/user/${this.edit.id}`,
           {
-            ircAccount,
-            role
+            ircAccount: this.edit.ircAccount,
+            role: this.edit.role
           },
           { withCredentials: true }
         )
