@@ -5,10 +5,10 @@
         <b-container fluid style="padding-left: 0%; padding-right: 0%;">
           <b-navbar toggleable="sm" type="dark" variant="dark">
             <b-navbar-toggle target="nav-text-collapse"></b-navbar-toggle>
-            <b-navbar-brand>BootstrapVue</b-navbar-brand>
+            <b-navbar-brand>Nodedrop</b-navbar-brand>
             <b-collapse id="nav-text-collapse" is-nav>
               <b-navbar-nav>
-                <b-nav-text>Navbar text</b-nav-text>
+                <!-- <b-nav-text>Navbar text</b-nav-text> -->
               </b-navbar-nav>
             </b-collapse>
           </b-navbar>
@@ -32,7 +32,10 @@
             <div v-if="activeView === 'home'">
               <h1>I'm main content :)</h1>
             </div>
-            <div v-if="activeView.startsWith('plugin/')">some plugin content here</div>
+            <div v-if="activeView.startsWith('plugin/')">
+            <iframe width="100%" height="100%" frameBorder="0" :src="activeView
+              + '/settings'"></iframe>
+            </div>
             <UserTable v-if="activeView === 'usertable'"></UserTable>
             <IgnoreListTable v-if="activeView === 'ignoretable'"></IgnoreListTable>
           </b-col>

@@ -23,7 +23,7 @@ servue.precompile(path.resolve(__dirname, 'web/views')).then(() => {
 })
 
 bot.connect(config.irc)
-bot.on('registered', () => bot.join('#Aww'))
+
 bot.cmdHelp = {}
 
 web.use(bodyParser.json())
@@ -157,7 +157,7 @@ const plugins = []
 function loadPlugin (folder) {
   console.log(`Loading ./plugins/${folder} 📂`)
   // Verfiy the folder contains "settings.json" && "index.js"
-  let files = fs.readdirSync(path.join(__dirname, `plugins/${folder}`))
+  const files = fs.readdirSync(path.join(__dirname, `plugins/${folder}`))
   if (!files.includes('index.js', 'settings.json')) {
     console.log(`Plugin: '${folder}' does not have index.js or info.js`)
     return
@@ -165,21 +165,21 @@ function loadPlugin (folder) {
   // Load 'settings.json' from the plugins folder
   const pluginInfo = JSON.parse(fs.readFileSync('./plugins/' + folder + '/settings.json'))
   expect(pluginInfo).toEqual({
-    'name': expect.any(String),
-    'description': expect.any(String),
-    'author': expect.any(String),
-    'version': expect.any(String),
-    'database': { dbs: expect.any(Array) },
-    'webPrefix': expect.any(String),
-    'webSettings': expect.any(Boolean),
-    'useServue': expect.any(Boolean),
-    'packages': expect.any(Array)
+    name: expect.any(String),
+    description: expect.any(String),
+    author: expect.any(String),
+    version: expect.any(String),
+    database: { dbs: expect.any(Array) },
+    webPrefix: expect.any(String),
+    webSettings: expect.any(Boolean),
+    useServue: expect.any(Boolean),
+    packages: expect.any(Array)
   })
   // Check if plugin already loaded
   if (plugins.find((plugin) => {
     // TODO: Change to hashes??
-    let comp1 = plugin.name + plugin.author + plugin.version
-    let comp2 = pluginInfo.name + pluginInfo.author + pluginInfo.version
+    const comp1 = plugin.name + plugin.author + plugin.version
+    const comp2 = pluginInfo.name + pluginInfo.author + pluginInfo.version
     return comp1 === comp2
   })) {
     console.log('Mod already loaded 😡')
@@ -194,7 +194,7 @@ function loadPlugin (folder) {
   )
   plugins.push(pluginInfo)
   // install plugin pkgs
-  //TODO: find a better way to do this
+  // TODO: find a better way to do this
   const shelljs = require('shelljs')
   shelljs.cd(`${__dirname}/plugins/example/`)
   shelljs.exec(`npm install`)
@@ -212,7 +212,7 @@ function loadPlugin (folder) {
       dbs[dbName] = db.collection(`plugin-${pluginInfo.name}-${dbName}`)
     })
     // setup Servue
-    let servue = new Servue()
+    const servue = new Servue()
     servue.mode = 'production'
     if (pluginInfo.useServue) {
       const viewsFolder = path.resolve(__dirname, `plugins/${folder}/web/views`)
@@ -248,7 +248,7 @@ fs.readdir(path.join(__dirname, 'plugins'), function (err, items) {
   if (err) {
     return console.log('Unable to scan directory: ' + err)
   }
-  let folders = items.filter((item) => {
+  const folders = items.filter((item) => {
     return fs.statSync(path.join(__dirname, `plugins/${item}`)).isDirectory()
   })
   folders.forEach(function (folder) {
@@ -303,7 +303,7 @@ registerCommand('!part', 'message', /^(!part)\s?([^\s]+)?$/, 'OWNER',
 registerCommand('!status', 'message', /^(!status)$/, 'ALL',
   'Return the status of running services. | !status',
   (event) => {
-    let status = {
+    const status = {
       irc: 'Online ✅',
       web: 'Online ✅',
       mongodb: 'Online ✅'
@@ -442,6 +442,15 @@ registerCommand('!rmadmin', 'pm', /^(!rmadmin)\s(.+)$/, 'OWNER',
     })
   })
 
+bot.on('registered', () => {
+  events.emit('registered')
+  bot.raw('umode +B') // set bot mode
+  if (config.nickServPass) {
+    bot.say('nickserv', `identify ${config.nickServPass}`)
+  }
+  config.autoJoin.forEach((channel) => bot.join(channel.name, channel.key))
+})
+
 bot.on('privmsg', (event) => {
   checkIgnoreList(event.hostname).then((ignored) => {
     if (ignored) {
@@ -538,6 +547,11 @@ web.post('/auth', (req, res) => {
   })
 })
 
+web.get('/auth/logout', [loginRequired], (req, res) => {
+  res.cookie('token', { expires: Date.now() })
+  res.redirect('/auth')
+})
+
 /* API v1 Server */
 const api = express.Router()
 web.use('/api/v1/', api)
@@ -549,7 +563,7 @@ api.get('/admin/info/plugins', [loginRequired, ownerRequired], (req, res) => {
 api.get('/admin/ignorelist', [loginRequired, ownerRequired], (req, res) => {
   ignorelistDB.find({}, (err, docs) => {
     if (err) { console.log(err) }
-    res.send({ 'ignorelist': docs })
+    res.send({ ignorelist: docs })
   })
 })
 
